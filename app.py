@@ -3,6 +3,8 @@ import time
 import random
 import google.generativeai as genai
 import os
+from fpdf import FPDF
+import base64
 
 # --- إعدادات الصفحة ---
 st.set_page_config(
@@ -12,600 +14,504 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- إعداد Gemini AI (اختياري) ---
-# للحصول على ذكاء اصطناعي حقيقي، يفضل وضع المفتاح في st.secrets
-# إذا لم يوجد مفتاح، سيعمل النظام بمحاكي ذكي متطور
+# --- إعداد Gemini AI ---
 api_key = os.environ.get("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
 
-# --- قاموس الترجمة ---
+# --- دوال مساعدة (PDF) ---
+def create_pdf(title, author, content):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    # ملاحظة: FPDF القياسية لا تدعم العربية بشكل كامل بدون ملفات خطوط خارجية
+    # لذلك سنضع الترويسة باللاتينية لضمان عمل الملف
+    pdf.cell(200, 10, txt="Nazaha Platform - Constantine 3 University", ln=1, align='C')
+    pdf.cell(200, 10, txt=f"Title: {title}", ln=1, align='L')
+    pdf.cell(200, 10, txt=f"Author: {author}", ln=1, align='L')
+    pdf.line(10, 30, 200, 30)
+    pdf.ln(20)
+    # محتوى بسيط
+    pdf.multi_cell(0, 10, txt="This document was downloaded from Nazaha Platform.\n\n" + content)
+    
+    return pdf.output(dest='S').encode('latin-1', 'ignore') 
+
+# --- قاموس الترجمة (عربي / إنجليزي فقط) ---
 TRANSLATIONS = {
     "ar": {
         "dir": "rtl",
         "title": "منصة نزاهة الأكاديمية",
         "tagline": "بوابتك نحو التميز الأكاديمي - جامعة قسنطينة 3",
         "login": "تسجيل الدخول",
-        "signup": "إنشاء حساب",
+        "signup": "إنشاء حساب جديد",
+        "role_select": "من أنت؟",
+        "student": "طالب",
+        "professor": "أستاذ",
         "email": "البريد الإلكتروني",
         "password": "كلمة المرور",
-        "dashboard": "لوحة القيادة",
-        "library": "المكتبة الرقمية",
-        "upload": "مركز النشر",
-        "quiz": "تحدي المعرفة",
-        "settings": "الإعدادات",
-        "ai_chat": "مدرب النزاهة (AI)",
-        "profile": "الملف الشخصي",
-        "points": "نقاط المعرفة",
-        "buy": "شراء",
-        "owned": "مملوك",
-        "welcome": "مرحباً،",
-        "logout": "خروج",
-        "price": "السعر",
-        "download": "تحميل الملف",
-        "search": "بحث في المكتبة...",
-        "no_books": "لم تقم بشراء أي كتب بعد.",
-        "go_library": "اذهب للمكتبة",
-        "correct": "إجابة صحيحة! +10 نقاط",
-        "wrong": "إجابة خاطئة، حاول مرة أخرى",
-        "gen_quiz": "توليد اختبار جديد",
         "full_name": "الاسم الكامل",
         "faculty": "الكلية",
         "specialty": "التخصص",
-        "year_study": "السنة الدراسية",
-        "success_buy": "تم الشراء! يمكنك التحميل الآن.",
-        "error_points": "رصيدك غير كافٍ!",
-        "recent_books": "مكتبتي",
-        "my_uploads": "ملفاتي",
-        "level": "المستوى",
-        "summarize": "تلخيص الكتاب (AI)",
-        "summary_result": "ملخص الذكاء الاصطناعي:",
-        "comments": "التعليقات",
-        "add_comment": "أضف تعليقك...",
-        "post_comment": "نشر التعليق",
-        "chat_intro": "مرحباً بك في مساعد النزاهة. أنا هنا لمساعدتك في صياغة الأوامر (Prompts) وتوجيه بحثك العلمي.",
-        "user_prompt": "أدخل الأمر (Prompt) أو سؤالك هنا...",
-        "change_pass": "تغيير كلمة المرور",
-        "old_pass": "كلمة المرور الحالية",
-        "new_pass": "كلمة المرور الجديدة",
-        "confirm_pass": "تأكيد كلمة المرور",
-        "save_changes": "حفظ التغييرات",
-        "link_accounts": "ربط الحسابات",
-        "clear_chat": "مسح سجل الدردشة",
-        "bio": "نبذة عني",
-        "edit_profile": "تعديل الملف"
-    },
-    "fr": {
-        "dir": "ltr",
-        "title": "Plateforme Académique Nazaha",
-        "tagline": "Votre portail vers l'excellence - Université Constantine 3",
-        "login": "Connexion",
-        "signup": "Inscription",
-        "email": "Email",
-        "password": "Mot de passe",
-        "dashboard": "Tableau de bord",
-        "library": "Bibliothèque",
-        "upload": "Centre de Publication",
-        "quiz": "Quiz de Connaissance",
-        "settings": "Paramètres",
-        "ai_chat": "Coach Nazaha (AI)",
-        "profile": "Profil",
-        "points": "Points de Savoir",
-        "buy": "Acheter",
-        "owned": "Acquis",
-        "welcome": "Bienvenue, ",
-        "logout": "Déconnexion",
-        "price": "Prix",
-        "download": "Télécharger",
-        "search": "Rechercher...",
-        "no_books": "Vous n'avez pas encore acheté de livres.",
-        "go_library": "Aller à la bibliothèque",
-        "correct": "Correct! +10 XP",
-        "wrong": "Faux, essayez encore",
-        "gen_quiz": "Générer un Quiz",
-        "full_name": "Nom Complet",
-        "faculty": "Faculté",
-        "specialty": "Spécialité",
-        "year_study": "Année d'étude",
-        "success_buy": "Acheté! Téléchargement disponible.",
-        "error_points": "Points insuffisants !",
-        "recent_books": "Ma Bibliothèque",
-        "my_uploads": "Mes Uploads",
-        "level": "Niveau",
-        "summarize": "Résumer (IA)",
-        "summary_result": "Résumé IA:",
-        "comments": "Commentaires",
-        "add_comment": "Ajouter un commentaire...",
-        "post_comment": "Publier",
-        "chat_intro": "Bienvenue sur Nazaha Coach. Je suis là pour guider votre recherche.",
-        "user_prompt": "Entrez votre prompt...",
-        "change_pass": "Changer le mot de passe",
-        "old_pass": "Ancien mot de passe",
-        "new_pass": "Nouveau mot de passe",
-        "confirm_pass": "Confirmer",
-        "save_changes": "Sauvegarder",
-        "link_accounts": "Lier les comptes",
-        "clear_chat": "Effacer le chat",
-        "bio": "Biographie",
-        "edit_profile": "Modifier le profil"
+        "department": "القسم",
+        "level": "السنة الدراسية",
+        "dashboard": "لوحة القيادة",
+        "library": "المكتبة الرقمية",
+        "research_cell": "خلية البحوث",
+        "review_research": "تحكيم البحوث",
+        "upload": "مركز النشر",
+        "quiz": "تحدي المعرفة",
+        "ai_chat": "المساعد الأكاديمي (AI)",
+        "settings": "الإعدادات",
+        "logout": "خروج",
+        "welcome": "مرحباً،",
+        "download_pdf": "تحميل PDF",
+        "submit_research": "تقديم بحث",
+        "research_title": "عنوان البحث",
+        "research_abstract": "ملخص البحث",
+        "status": "الحالة",
+        "pending": "قيد المراجعة",
+        "approved": "منشور",
+        "approve": "قبول ونشر",
+        "reject": "رفض",
+        "no_research": "لا توجد بحوث للمراجعة حالياً.",
+        "chat_intro": "أهلاً بك. أنا مساعدك الأكاديمي المتخصص. يمكنني مساعدتك في صياغة الإشكاليات، اقتراح المراجع، وتدقيق الاقتباسات لتجنب السرقة العلمية.",
+        "chat_placeholder": "اسألني عن كيفية كتابة خطة بحث، أو كيفية التوثيق بطريقة APA...",
+        "grade": "الرتبة العلمية",
+        "buy": "شراء",
+        "owned": "مملوك",
+        "points": "نقطة",
+        "comments": "تعليقات",
+        "add_comment": "أضف تعليق..."
     },
     "en": {
         "dir": "ltr",
         "title": "Nazaha Academic Platform",
         "tagline": "Your gateway to excellence - Constantine 3 University",
         "login": "Login",
-        "signup": "Sign Up",
+        "signup": "Create Account",
+        "role_select": "Who are you?",
+        "student": "Student",
+        "professor": "Professor",
         "email": "Email",
         "password": "Password",
-        "dashboard": "Dashboard",
-        "library": "Library",
-        "upload": "Upload Center",
-        "quiz": "Knowledge Quiz",
-        "settings": "Settings",
-        "ai_chat": "Nazaha Coach (AI)",
-        "profile": "Profile",
-        "points": "Knowledge Points",
-        "buy": "Buy",
-        "owned": "Owned",
-        "welcome": "Welcome, ",
-        "logout": "Logout",
-        "price": "Price",
-        "download": "Download",
-        "search": "Search...",
-        "no_books": "You haven't bought any books yet.",
-        "go_library": "Go to Library",
-        "correct": "Correct! +10 XP",
-        "wrong": "Wrong answer",
-        "gen_quiz": "Generate Quiz",
         "full_name": "Full Name",
         "faculty": "Faculty",
         "specialty": "Specialty",
-        "year_study": "Year of Study",
-        "success_buy": "Purchased! Download available.",
-        "error_points": "Insufficient points!",
-        "recent_books": "My Library",
-        "my_uploads": "My Uploads",
-        "level": "Level",
-        "summarize": "Summarize (AI)",
-        "summary_result": "AI Summary:",
+        "department": "Department",
+        "level": "Year of Study",
+        "dashboard": "Dashboard",
+        "library": "Library",
+        "research_cell": "Research Cell",
+        "review_research": "Review Research",
+        "upload": "Upload Center",
+        "quiz": "Knowledge Challenge",
+        "ai_chat": "Academic Assistant (AI)",
+        "settings": "Settings",
+        "logout": "Logout",
+        "welcome": "Welcome, ",
+        "download_pdf": "Download PDF",
+        "submit_research": "Submit Research",
+        "research_title": "Research Title",
+        "research_abstract": "Abstract",
+        "status": "Status",
+        "pending": "Pending Review",
+        "approved": "Published",
+        "approve": "Approve & Publish",
+        "reject": "Reject",
+        "no_research": "No research to review.",
+        "chat_intro": "Welcome. I am your specialized academic assistant. I can help you formulate problems, suggest references, and check citations to avoid plagiarism.",
+        "chat_placeholder": "Ask me how to write a research plan, or how to cite in APA...",
+        "grade": "Academic Grade",
+        "buy": "Buy",
+        "owned": "Owned",
+        "points": "XP",
         "comments": "Comments",
-        "add_comment": "Add a comment...",
-        "post_comment": "Post",
-        "chat_intro": "Welcome to Nazaha Coach. I'm here to guide your research.",
-        "user_prompt": "Enter your prompt...",
-        "change_pass": "Change Password",
-        "old_pass": "Old Password",
-        "new_pass": "New Password",
-        "confirm_pass": "Confirm Password",
-        "save_changes": "Save Changes",
-        "link_accounts": "Link Accounts",
-        "clear_chat": "Clear Chat History",
-        "bio": "Bio",
-        "edit_profile": "Edit Profile"
+        "add_comment": "Add comment..."
     }
 }
 
-# --- البيانات الهيكلية (جامعة قسنطينة 3) ---
+# --- البيانات ---
 FACULTY_SPECIALTIES = {
     "Faculté de Médecine": ["Médecine", "Pharmacie", "Médecine Dentaire"],
     "Faculté d'Architecture et d'Urbanisme": ["Architecture", "Urbanisme", "Gestion des Villes"],
-    "Faculté des Arts et de la Culture": ["Arts Plastiques", "Arts Dramatiques", "Cinéma", "Design"],
-    "Faculté de Génie des Procédés": ["Génie Chimique", "Génie Pharmaceutique", "Génie de l'Environnement"],
-    "Faculté des Sciences Politiques": ["Sciences Politiques", "Relations Internationales", "Organisation Administrative"],
-    "Faculté des NTIC": ["Informatique (GL)", "Informatique (SI)", "Réseaux et Télécom (RSD)", "Technologies Web (STIC)"],
-    "Institut de Gestion des Techniques Urbaines": ["Génie Urbain", "Gestion de la ville"]
+    "Faculté des NTIC": ["Informatique (GL)", "Informatique (SI)", "Réseaux et Télécom (RSD)"],
+    "Faculté des Sciences Politiques": ["Sciences Politiques", "Relations Internationales"]
 }
 
-STUDY_YEARS = ["Licence 1", "Licence 2", "Licence 3", "Master 1", "Master 2", "Doctorat"]
+PROF_GRADES = ["Maitre Assistant B", "Maitre Assistant A", "Maitre de Conférence B", "Maitre de Conférence A", "Professeur"]
 
-# --- البيانات الأولية ---
-INITIAL_BOOKS = [
-    {"id": 1, "title": "Introduction à l'Architecture", "author": "Dr. Amine", "faculty": "Architecture", "price": 45, "downloads": 120, "category": "Architecture", "comments": [{"user": "Ali", "text": "كتاب ممتاز للمبتدئين"}]},
-    {"id": 2, "title": "Algorithmique Avancée", "author": "Prof. Sara", "faculty": "NTIC", "price": 60, "downloads": 45, "category": "Informatique", "comments": []},
-    {"id": 3, "title": "Anatomie Humaine", "author": "Faculté Méd", "faculty": "Médecine", "price": 75, "downloads": 300, "category": "Médecine", "comments": [{"user": "Sami", "text": "الصور واضحة جداً"}]}
-]
-
-# --- إدارة الحالة (Session State) ---
+# --- إدارة الحالة ---
 if 'lang' not in st.session_state: st.session_state.lang = 'ar'
-if 'view' not in st.session_state: st.session_state.view = 'login'
+if 'view' not in st.session_state: st.session_state.view = 'auth'
 if 'user' not in st.session_state: st.session_state.user = None
-if 'books' not in st.session_state: st.session_state.books = INITIAL_BOOKS
-if 'quiz_data' not in st.session_state: st.session_state.quiz_data = None
+if 'books' not in st.session_state: 
+    st.session_state.books = [
+        {"id": 1, "title": "Introduction à l'Architecture", "author": "Dr. Amine", "faculty": "Architecture", "price": 45, "downloads": 120, "comments": []},
+        {"id": 2, "title": "Algorithmique Avancée", "author": "Prof. Sara", "faculty": "NTIC", "price": 60, "downloads": 45, "comments": []}
+    ]
+# قائمة البحوث الطلابية (المقدمة والموافقة عليها)
+if 'student_research' not in st.session_state: st.session_state.student_research = [] 
 if 'chat_history' not in st.session_state: st.session_state.chat_history = []
 
 # --- دوال مساعدة ---
 def t(key): return TRANSLATIONS[st.session_state.lang].get(key, key)
-def set_lang(l): st.session_state.lang = l
 def set_view(v): st.session_state.view = v
 
-def get_mock_file_data(book_title):
-    return f"هذا محتوى تجريبي للكتاب: {book_title}\n\nحقوق النشر محفوظة لجامعة قسنطينة 3.\nمنصة نزاهة.".encode('utf-8')
-
-# ذكاء اصطناعي محاكي (في حال عدم وجود مفتاح API)
-def mock_ai_response(prompt):
-    prompt = prompt.lower()
-    if "بحث" in prompt or "research" in prompt:
-        return "للبدء في بحث أكاديمي جيد، ابدأ بصياغة سؤال البحث الرئيسي. هل يمكنك تحديد الموضوع بدقة؟ سأساعدك في كتابة المقدمة."
-    elif "برومبت" in prompt or "prompt" in prompt:
-        return "كتابة البرومبت (Prompt Engineering) تتطلب تحديد: الدور (أنت باحث)، المهمة (لخص)، والسياق. حاول إعادة صياغة طلبك بهذه الطريقة."
-    elif "سرقة" in prompt or "plagiaris" in prompt:
-        return "تجنب السرقة العلمية يكون عبر التوثيق الجيد (APA/IEEE) وإعادة الصياغة بأسلوبك الخاص. هل تريدني أن أراجع فقرة لك؟"
-    elif "python" in prompt or "code" in prompt:
-        return "يمكنني مساعدتك في البرمجة. تأكد من فهم الكود قبل نسخه. ما هي المشكلة التي تواجهها في الكود؟"
-    else:
-        return "هذا موضوع مثير! بصفتي مساعدك الأكاديمي في جامعة قسنطينة 3، أنصحك بالتركيز على المراجع الحديثة. هل لديك أي أسئلة محددة؟"
-
-# استدعاء الذكاء الاصطناعي (الحقيقي أو المحاكي)
-def generate_ai_response(prompt):
+# --- الذكاء الاصطناعي المحسن ---
+def get_ai_response(prompt, user_context):
+    # سياق النظام (System Prompt)
+    system_prompt = f"""
+    أنت مساعد أكاديمي ذكي في "منصة نزاهة" لجامعة قسنطينة 3.
+    مهمتك: مساعدة الطلاب والأساتذة في البحث العلمي، صياغة الفرضيات، وتجنب السرقة العلمية.
+    السياق الحالي للمستخدم: {user_context}
+    
+    تعليمات هامة:
+    1. إذا طلب المستخدم كتابة بحث كامل، ارفض بتهذيب واعرض المساعدة في "الهيكلة" أو "التدقيق" فقط (للحفاظ على النزاهة).
+    2. إذا سأل عن كيفية التوثيق، اشرح له أسلوب APA أو IEEE.
+    3. كن دقيقاً ومختصراً واستخدم لغة أكاديمية رصينة.
+    """
+    
     if api_key:
         try:
             model = genai.GenerativeModel('gemini-1.5-flash')
-            response = model.generate_content(prompt)
+            full_prompt = f"{system_prompt}\n\nسؤال المستخدم: {prompt}"
+            response = model.generate_content(full_prompt)
             return response.text
-        except Exception as e:
-            return f"حدث خطأ في الاتصال بـ Gemini: {e}. سأستخدم النظام الاحتياطي.\n\n{mock_ai_response(prompt)}"
+        except:
+            pass # Fallback to mock if API fails
+            
+    # المحاكي الذكي (Fallback)
+    time.sleep(1.5)
+    if "بحث" in prompt:
+        return "لإعداد بحث متميز، يجب أن تبدأ بـ **إشكالية واضحة**. هل يمكنك صياغة السؤال الرئيسي لبحثك؟ سأساعدك في تحويله إلى فرضيات قابلة للدراسة."
+    elif "سرقة" in prompt or "اقتباس" in prompt:
+        return "النزاهة العلمية تتطلب التوثيق الدقيق. أي نص تأخذه من مصدر آخر يجب أن تضعه بين علامتي تنصيص وتذكر المصدر فوراً. هل تريد مثالاً على توثيق كتاب؟"
+    elif "خطة" in prompt:
+        return "الخطة النموذجية تتكون من: \n1. المقدمة (الإشكالية)\n2. الإطار النظري\n3. الجانب التطبيقي\n4. النتائج والتوصيات.\nما هو موضوعك لنفصل الخطة؟"
     else:
-        # تأخير بسيط لمحاكاة التفكير
-        time.sleep(1.5)
-        return mock_ai_response(prompt)
+        return "أنا هنا لمساعدتك في رحلتك البحثية. يمكنك سؤالي عن المراجع، المنهجية، أو كيفية استخدام المنصة."
 
-# --- CSS مخصص ---
+# --- CSS Styles ---
 direction = TRANSLATIONS[st.session_state.lang]['dir']
 st.markdown(f"""
 <style>
     .main {{ direction: {direction}; text-align: {'right' if direction == 'rtl' else 'left'}; }}
-    .stButton button {{ width: 100%; }}
+    .stButton button {{ width: 100%; border-radius: 8px; }}
+    .stTextInput input {{ border-radius: 8px; }}
     .block-container {{ direction: {direction}; }}
     div[data-testid="stMetricValue"] {{ direction: ltr; }}
     .stChatMessage {{ direction: {direction}; }}
-    /* تحسين مظهر الملف الشخصي */
-    .profile-card {{
-        background-color: #f0f2f6;
-        padding: 20px;
-        border-radius: 15px;
-        border: 1px solid #e0e0e0;
+    
+    /* بطاقات مميزة */
+    .card {{
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        margin-bottom: 1rem;
+        border: 1px solid #f0f0f0;
     }}
+    .status-pending {{ color: #eab308; font-weight: bold; }}
+    .status-approved {{ color: #22c55e; font-weight: bold; }}
 </style>
 """, unsafe_allow_html=True)
 
-# --- الواجهات ---
+# ================= واجهات التطبيق =================
 
 def auth_view():
-    st.markdown(f"<h1 style='text-align: center; color: #1e3a8a;'>{t('title')}</h1>", unsafe_allow_html=True)
-    st.markdown(f"<p style='text-align: center; color: gray;'>{t('tagline')}</p>", unsafe_allow_html=True)
+    st.markdown(f"<h1 style='text-align: center; color: #0ea5e9;'>{t('title')}</h1>", unsafe_allow_html=True)
     
-    c1, c2, c3, c4, c5 = st.columns(5)
+    # تبديل اللغة
+    c1, c2 = st.columns(2)
+    with c1: 
+        if st.button("English", key="len"): st.session_state.lang = 'en'; st.rerun()
     with c2:
-        if st.button("AR"): set_lang("ar"); st.rerun()
-    with c3:
-        if st.button("FR"): set_lang("fr"); st.rerun()
-    with c4:
-        if st.button("EN"): set_lang("en"); st.rerun()
+        if st.button("العربية", key="lar"): st.session_state.lang = 'ar'; st.rerun()
 
-    tab1, tab2 = st.tabs([t('login'), t('signup')])
-
-    with tab1:
+    tab_login, tab_signup = st.tabs([t('login'), t('signup')])
+    
+    # --- تسجيل الدخول ---
+    with tab_login:
         with st.form("login_form"):
             email = st.text_input(t('email'))
             password = st.text_input(t('password'), type="password")
             submit = st.form_submit_button(t('login'))
             
             if submit:
-                if email and password:
-                    # محاكاة الدخول
-                    st.session_state.user = {
-                        "name": "طالب تجريبي", 
-                        "email": email, 
-                        "points": 200, 
-                        "library": [], 
-                        "uploads": [],
-                        "faculty": "NTIC",
-                        "specialty": "GL",
-                        "level": "Master 1",
-                        "bio": "طالب باحث مهتم بالذكاء الاصطناعي."
-                    }
-                    st.session_state.view = 'ai_chat' # التوجيه المباشر للدردشة
+                # محاكاة مستخدمين (واحد طالب وواحد أستاذ)
+                if email == "prof@univ.dz":
+                    st.session_state.user = {"name": "Dr. Ahmed", "role": "professor", "points": 500, "faculty": "NTIC", "library": []}
+                    st.session_state.view = 'dashboard'
+                    st.rerun()
+                elif email == "student@univ.dz" or (email and password):
+                    st.session_state.user = {"name": "Student Ali", "role": "student", "points": 100, "faculty": "NTIC", "level": "Master 2", "library": [], "uploads": []}
+                    st.session_state.view = 'ai_chat' # توجيه الطالب للدردشة
                     st.rerun()
                 else:
-                    st.error("الرجاء إدخال البيانات")
+                    st.error("بيانات خاطئة (جرب prof@univ.dz أو student@univ.dz)")
 
-    with tab2:
-        st.markdown("### " + t('signup'))
-        # إزالة st.form هنا لحل مشكلة تحديث التخصصات
-        # يتم استخدام حاوية عادية للتفاعل الفوري
+    # --- التسجيل الجديد (الواجهة الجديدة) ---
+    with tab_signup:
+        st.subheader(t('role_select'))
         
-        name = st.text_input(t('full_name'))
-        email_reg = st.text_input(t('email'))
-        pass_reg = st.text_input(t('password'), type="password")
+        # اختيار الدور
+        role = st.radio("", [t('student'), t('professor')], horizontal=True)
         
-        # اختيار الكلية (ديناميكي)
-        faculty_list = list(FACULTY_SPECIALTIES.keys())
-        faculty = st.selectbox(t('faculty'), faculty_list, index=0)
-        
-        # تحديث التخصصات بناءً على الكلية المختارة فوراً
-        specialties_list = FACULTY_SPECIALTIES.get(faculty, [])
-        specialty = st.selectbox(t('specialty'), specialties_list)
-        
-        level = st.selectbox(t('year_study'), STUDY_YEARS)
-        
-        if st.button(t('signup'), type="primary"):
-            if name and email_reg and pass_reg:
-                st.session_state.user = {
-                    "name": name, 
-                    "email": email_reg, 
-                    "points": 150, 
-                    "library": [], 
-                    "uploads": [],
-                    "faculty": faculty,
-                    "specialty": specialty,
-                    "level": level,
-                    "bio": "طالب جديد في المنصة."
-                }
-                st.session_state.view = 'ai_chat' # التوجيه المباشر للدردشة
-                st.success("تم إنشاء الحساب بنجاح!")
-                time.sleep(0.5)
-                st.rerun()
+        with st.form("signup_form"):
+            name = st.text_input(t('full_name'))
+            email_reg = st.text_input(t('email'))
+            pass_reg = st.text_input(t('password'), type="password")
+            
+            faculty = st.selectbox(t('faculty'), list(FACULTY_SPECIALTIES.keys()))
+            
+            if role == t('student'):
+                specialty = st.selectbox(t('specialty'), FACULTY_SPECIALTIES.get(faculty, []))
+                level = st.selectbox(t('level'), ["Licence 1", "Licence 2", "Licence 3", "Master 1", "Master 2", "Doctorat"])
             else:
-                st.error("الرجاء ملء جميع الحقول")
+                # حقول خاصة بالأستاذ
+                department = st.text_input(t('department'))
+                grade = st.selectbox(t('grade'), PROF_GRADES)
+
+            submit_reg = st.form_submit_button(t('signup'))
+            
+            if submit_reg:
+                if name and email_reg:
+                    user_role = "student" if role == t('student') else "professor"
+                    st.session_state.user = {
+                        "name": name,
+                        "email": email_reg,
+                        "role": user_role,
+                        "points": 200 if user_role == "student" else 1000,
+                        "faculty": faculty,
+                        "library": [],
+                        "uploads": [] # للطلاب: بحوثهم، للأساتذة: منشوراتهم
+                    }
+                    if user_role == "student":
+                        st.session_state.user["level"] = level
+                        st.session_state.user["specialty"] = specialty
+                    else:
+                        st.session_state.user["grade"] = grade
+                    
+                    st.success("تم التسجيل بنجاح!")
+                    time.sleep(1)
+                    st.session_state.view = 'ai_chat' if user_role == "student" else 'dashboard'
+                    st.rerun()
 
 def sidebar_menu():
     user = st.session_state.user
     with st.sidebar:
-        st.image("https://cdn-icons-png.flaticon.com/512/2995/2995620.png", width=50)
-        st.title("Nazaha LMS")
+        st.title("Nazaha Platform")
+        st.caption(f"User: {user['name']} ({t(user['role'])})")
         
-        if user:
-            st.info(f"{t('welcome')} {user['name']}\n\n🏆 {user['points']} XP")
+        if user['role'] == "student":
+             st.metric(t('points'), user['points'])
         
         st.markdown("---")
         
-        # ترتيب الأزرار حسب الأهمية
         if st.button(f"🤖 {t('ai_chat')}"): set_view('ai_chat')
-        if st.button(f"👤 {t('profile')}"): set_view('profile') # زر جديد
         if st.button(f"📊 {t('dashboard')}"): set_view('dashboard')
         if st.button(f"📚 {t('library')}"): set_view('library')
-        if st.button(f"📤 {t('upload')}"): set_view('upload')
+        
+        # القائمة الخاصة بالبحوث تختلف حسب الدور
+        if user['role'] == "student":
+            if st.button(f"📝 {t('submit_research')}"): set_view('research_cell')
+        else:
+            if st.button(f"⚖️ {t('review_research')}"): set_view('review_research')
+            
         if st.button(f"🧠 {t('quiz')}"): set_view('quiz')
         if st.button(f"⚙️ {t('settings')}"): set_view('settings')
         
         st.markdown("---")
         if st.button(f"🚪 {t('logout')}", type="primary"):
             st.session_state.user = None
-            st.session_state.view = 'login'
+            st.session_state.view = 'auth'
             st.rerun()
-
-def profile_view():
-    user = st.session_state.user
-    st.title(f"👤 {t('profile')}")
-    
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        st.image("https://cdn-icons-png.flaticon.com/512/3135/3135715.png", width=150)
-        st.metric(label="XP", value=user['points'])
-        
-    with col2:
-        st.markdown(f"""
-        <div class="profile-card">
-            <h3>{user['name']}</h3>
-            <p><strong>{t('email')}:</strong> {user['email']}</p>
-            <p><strong>{t('faculty')}:</strong> {user['faculty']}</p>
-            <p><strong>{t('specialty')}:</strong> {user['specialty']}</p>
-            <p><strong>{t('level')}:</strong> {user['level']}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("### " + t('bio'))
-        new_bio = st.text_area("", value=user.get('bio', ''), height=100)
-        if st.button(t('save_changes'), key="save_bio"):
-            user['bio'] = new_bio
-            st.success("تم تحديث النبذة التعريفية")
 
 def ai_chat_view():
     st.title(f"🤖 {t('ai_chat')}")
+    user = st.session_state.user
     
-    # عرض التنبيه فقط إذا كانت الدردشة فارغة
     if not st.session_state.chat_history:
         st.info(t('chat_intro'))
     
-    for message in st.session_state.chat_history:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-    if prompt := st.chat_input(t('user_prompt')):
+    if prompt := st.chat_input(t('chat_placeholder')):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
-
+            
         with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            full_response = ""
+            placeholder = st.empty()
+            # بناء سياق للمستخدم
+            context = f"المستخدم: {user['name']}، الدور: {user['role']}، الكلية: {user.get('faculty', 'غير محدد')}"
+            response = get_ai_response(prompt, context)
             
-            # استدعاء دالة الذكاء الاصطناعي (الحقيقي أو المحاكي)
-            ai_reply = generate_ai_response(prompt)
-            
-            # محاكاة الكتابة (Streaming effect)
-            for chunk in ai_reply.split():
-                full_response += chunk + " "
+            # تأثير الكتابة
+            full_res = ""
+            for chunk in response.split():
+                full_res += chunk + " "
                 time.sleep(0.05)
-                message_placeholder.markdown(full_response + "▌")
-            message_placeholder.markdown(full_response)
+                placeholder.markdown(full_res + "▌")
+            placeholder.markdown(full_res)
             
-        st.session_state.chat_history.append({"role": "assistant", "content": full_response})
+        st.session_state.chat_history.append({"role": "assistant", "content": full_res})
+
+def research_cell_view():
+    # واجهة الطالب لتقديم البحوث
+    st.title(f"📝 {t('research_cell')}")
+    st.info("هنا يمكنك تقديم بحوثك لمراجعتها من قبل الأساتذة. البحوث المتميزة سيتم نشرها في المكتبة.")
+    
+    with st.form("submit_research_form"):
+        title = st.text_input(t('research_title'))
+        abstract = st.text_area(t('research_abstract'))
+        file = st.file_uploader("ملف البحث (PDF)", type="pdf")
+        submit = st.form_submit_button(t('submit_research'))
+        
+        if submit and title and file:
+            new_research = {
+                "id": int(time.time()),
+                "title": title,
+                "abstract": abstract,
+                "author": st.session_state.user['name'],
+                "faculty": st.session_state.user['faculty'],
+                "status": "pending", # معلق
+                "date": time.strftime("%Y-%m-%d")
+            }
+            st.session_state.student_research.append(new_research)
+            st.success("تم إرسال بحثك للمراجعة بنجاح!")
+
+    # عرض حالة بحوثي
+    st.subheader("بحوثي المقدمة")
+    my_research = [r for r in st.session_state.student_research if r['author'] == st.session_state.user['name']]
+    for r in my_research:
+        status_color = "status-pending" if r['status'] == "pending" else "status-approved"
+        status_text = t(r['status'])
+        st.markdown(f"""
+        <div class="card">
+            <h4>{r['title']}</h4>
+            <p>{r['abstract']}</p>
+            <p class="{status_color}">{status_text}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+def review_research_view():
+    # واجهة الأستاذ لمراجعة البحوث
+    st.title(f"⚖️ {t('review_research')}")
+    
+    # جلب البحوث المعلقة الخاصة بكلية الأستاذ
+    prof_faculty = st.session_state.user['faculty']
+    pending = [r for r in st.session_state.student_research if r['status'] == "pending" and r['faculty'] == prof_faculty]
+    
+    if not pending:
+        st.info(t('no_research'))
+    
+    for r in pending:
+        with st.container():
+            st.markdown(f"""
+            <div class="card">
+                <h3>{r['title']}</h3>
+                <p><strong>الطالب:</strong> {r['author']}</p>
+                <p>{r['abstract']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button(f"✅ {t('approve')}", key=f"app_{r['id']}"):
+                    r['status'] = "approved"
+                    # إضافة البحث للمكتبة العامة
+                    st.session_state.books.append({
+                        "id": r['id'],
+                        "title": r['title'],
+                        "author": r['author'],
+                        "faculty": r['faculty'],
+                        "price": 0, # بحوث الطلبة مجانية
+                        "downloads": 0,
+                        "comments": [],
+                        "type": "research"
+                    })
+                    st.success(f"تم نشر البحث '{r['title']}'")
+                    st.rerun()
+            with c2:
+                if st.button(f"❌ {t('reject')}", key=f"rej_{r['id']}"):
+                    r['status'] = "rejected"
+                    st.warning("تم رفض البحث")
+                    st.rerun()
 
 def library_view():
-    st.title(t('library'))
-    user = st.session_state.user
-    search = st.text_input(t('search'))
+    st.title(f"📚 {t('library')}")
     
-    filtered_books = [b for b in st.session_state.books if search.lower() in b['title'].lower()]
+    # عرض البحوث المنشورة + الكتب
+    books = st.session_state.books
     
-    cols = st.columns(2)
-    for i, book in enumerate(filtered_books):
-        with cols[i % 2]:
-            with st.container(border=True):
-                st.subheader(book['title'])
-                st.caption(f"{book['author']} | {book['faculty']}")
-                
-                is_owned = any(b['id'] == book['id'] for b in user['library'])
-                
-                # زر التلخيص
-                if st.button(f"✨ {t('summarize')}", key=f"sum_{book['id']}"):
-                    with st.spinner(t('analyzing')):
-                        time.sleep(1.5)
-                        st.info(f"**{t('summary_result')}**\n\nملخص حول {book['title']}...")
-
-                if is_owned:
-                    st.success(f"✅ {t('owned')}")
-                    # زر التحميل يظهر دائماً للمحتوى المملوك
-                    file_data = get_mock_file_data(book['title'])
-                    st.download_button(
-                        label=f"⬇️ {t('download')}",
-                        data=file_data,
-                        file_name=f"{book['title']}.txt",
-                        mime="text/plain",
-                        key=f"lib_dl_{book['id']}",
-                        use_container_width=True
-                    )
-                else:
-                    price = int(book['price'] + (book['downloads'] * 0.2))
-                    st.markdown(f"**{price} XP**")
-                    
-                    # زر الشراء
-                    if st.button(t('buy'), key=f"buy_{book['id']}"):
-                        if user['points'] >= price:
-                            user['points'] -= price
-                            user['library'].append(book)
-                            book['downloads'] += 1
-                            st.balloons() # احتفال بالشراء
-                            st.toast(t('success_buy'), icon="✅")
-                            time.sleep(0.5)
-                            st.rerun()
-                        else:
-                            st.error(t('error_points'))
+    search = st.text_input("بحث...")
+    filtered = [b for b in books if search.lower() in b['title'].lower()]
+    
+    for b in filtered:
+        with st.container():
+            st.markdown(f"<div class='card'><h3>{b['title']}</h3><p>👤 {b['author']} | 🏛️ {b['faculty']}</p></div>", unsafe_allow_html=True)
+            
+            # أزرار التفاعل
+            c1, c2 = st.columns([1, 3])
+            
+            # التحقق من الملكية
+            is_owned = False
+            if 'library' in st.session_state.user:
+                is_owned = any(item['id'] == b['id'] for item in st.session_state.user['library'])
+            
+            # الكتب البحثية مجانية، الكتب الأخرى بالنقاط
+            is_free = b.get('type') == 'research'
+            
+            if is_owned or is_free:
+                # توليد PDF حقيقي
+                pdf_bytes = create_pdf(b['title'], b['author'], "This is the academic content of the book/research paper...")
+                b64_pdf = base64.b64encode(pdf_bytes).decode('latin-1')
+                href = f'<a href="data:application/pdf;base64,{b64_pdf}" download="{b["title"]}.pdf" style="background-color:#22c55e;color:white;padding:8px 15px;text-decoration:none;border-radius:5px;display:block;text-align:center;">⬇️ {t("download_pdf")}</a>'
+                st.markdown(href, unsafe_allow_html=True)
+            else:
+                if st.button(f"{t('buy')} ({b['price']} {t('points')})", key=f"buy_{b['id']}"):
+                    if st.session_state.user['points'] >= b['price']:
+                        st.session_state.user['points'] -= b['price']
+                        st.session_state.user['library'].append(b)
+                        st.success(t('success_buy'))
+                        st.rerun()
+                    else:
+                        st.error("نقاط غير كافية")
 
 def dashboard_view():
-    # (نفس الكود السابق مع تحسينات طفيفة)
+    st.title(f"📊 {t('dashboard')}")
     user = st.session_state.user
-    st.title(t('dashboard'))
-    col1, col2, col3 = st.columns(3)
-    col1.metric(t('recent_books'), len(user['library']))
-    col2.metric(t('my_uploads'), len(user['uploads']))
-    col3.metric(t('level'), user['level'])
-    st.subheader(t('recent_books'))
-    if not user['library']:
-        st.warning(t('no_books'))
-        if st.button(t('go_library')): set_view('library'); st.rerun()
-    else:
-        for book in user['library']:
-            with st.expander(f"📄 {book['title']}"):
-                st.write(f"👤 {book['author']}")
-                file_data = get_mock_file_data(book['title'])
-                st.download_button(
-                    label=f"⬇️ {t('download')}",
-                    data=file_data,
-                    file_name=f"{book['title']}.txt",
-                    mime="text/plain",
-                    key=f"dash_dl_{book['id']}"
-                )
-
-def settings_view():
-    st.title(t('settings'))
     
-    # قسم اللغة
-    st.subheader("🌐 Language / اللغة")
-    c1, c2, c3 = st.columns([1,1,1])
-    if c1.button("العربية", key="lang_ar"): set_lang('ar'); st.rerun()
-    if c2.button("Français", key="lang_fr"): set_lang('fr'); st.rerun()
-    if c3.button("English", key="lang_en"): set_lang('en'); st.rerun()
-    
-    st.divider()
-    
-    # قسم الأمان (محاكاة)
-    st.subheader(f"🔒 {t('change_pass')}")
-    with st.expander(t('change_pass')):
-        current = st.text_input(t('old_pass'), type="password")
-        new_p = st.text_input(t('new_pass'), type="password")
-        confirm_p = st.text_input(t('confirm_pass'), type="password")
-        if st.button(t('save_changes')):
-            if new_p == confirm_p and len(new_p) > 0:
-                st.success("تم تحديث كلمة المرور بنجاح!")
-            else:
-                st.error("كلمات المرور غير متطابقة")
-    
-    st.divider()
-    
-    # ربط الحسابات (محاكاة)
-    st.subheader(f"🔗 {t('link_accounts')}")
-    c_fb, c_google = st.columns(2)
-    with c_fb:
-        st.toggle("Facebook", value=False)
-    with c_google:
-        st.toggle("Google", value=True)
+    col1, col2 = st.columns(2)
+    if user['role'] == 'student':
+        col1.metric(t('points'), user['points'])
+        col2.metric("مستوى", user.get('level', ''))
         
-    st.divider()
-    
-    # إدارة البيانات
-    st.subheader("🗑️ Zone Danger")
-    if st.button(t('clear_chat'), type="primary"):
-        st.session_state.chat_history = []
-        st.success("تم مسح السجل")
-        time.sleep(0.5)
-        st.rerun()
+        st.subheader("مكتسباتي")
+        if user['library']:
+            for b in user['library']:
+                st.write(f"✅ {b['title']}")
+        else:
+            st.info("لا توجد كتب بعد.")
+            
+    else:
+        # لوحة الأستاذ
+        col1.metric("البحوث المنشورة", len([r for r in st.session_state.student_research if r['status'] == 'approved']))
+        col2.metric("الرتبة", user.get('grade', ''))
+        st.info("انتقل إلى 'تحكيم البحوث' لمراجعة أعمال الطلبة.")
 
-# الدوال الأخرى (upload_view, quiz_view) تبقى كما هي مع التأكد من استدعائها بشكل صحيح
-def upload_view():
-    # ... (نفس كود الرفع السابق)
-    st.title(t('upload'))
-    st.info(t('upload_text'))
-    title = st.text_input("عنوان الملف")
-    uploaded_file = st.file_uploader("PDF", type="pdf")
-    if uploaded_file and title:
-        if st.button("تحليل"):
-            with st.spinner(t('analyzing')):
-                time.sleep(1.5)
-                score = random.randint(50, 99)
-                price = int(score * 0.8)
-                st.session_state.upload_result = {"score": score, "price": price, "title": title}
-    if 'upload_result' in st.session_state:
-        res = st.session_state.upload_result
-        st.success(f"الجودة: {res['score']}%")
-        st.metric(t('price'), f"{res['price']} XP")
-        if st.button(t('publish')): # إضافة الكتاب للمكتبة والمستخدم
-             # ... (Logic to add book)
-             new_book = {"id": int(time.time()), "title": res['title'], "author": st.session_state.user['name'], "faculty": st.session_state.user['faculty'], "price": res['price'], "downloads": 0, "category": "General"}
-             st.session_state.books.append(new_book)
-             st.session_state.user['uploads'].append(new_book)
-             st.session_state.user['points'] += 20
-             del st.session_state.upload_result
-             st.balloons()
-             st.rerun()
-
-def quiz_view():
-    st.title(t('quiz'))
-    user = st.session_state.user
-    if not user['library']: st.warning(t('no_books')); return
-    
-    if st.button(t('gen_quiz')) or st.session_state.quiz_data is None:
-        book = random.choice(user['library'])
-        st.session_state.quiz_data = {"question": f"سؤال حول {book['title']}؟", "options": ["أ", "ب", "ج"], "correct": "أ"}
-    
-    q = st.session_state.quiz_data
-    st.subheader(q['question'])
-    ans = st.radio("الجواب", q['options'], key=f"q_{q['question']}")
-    if st.button("تحقق"):
-        if ans == q['correct']: st.success(t('correct')); user['points']+=10
-        else: st.error(t('wrong'))
-
-# --- المحرك الرئيسي ---
+# --- الموجه الرئيسي ---
 if st.session_state.user is None:
     auth_view()
 else:
     sidebar_menu()
     if st.session_state.view == 'dashboard': dashboard_view()
     elif st.session_state.view == 'library': library_view()
-    elif st.session_state.view == 'upload': upload_view()
-    elif st.session_state.view == 'quiz': quiz_view()
     elif st.session_state.view == 'ai_chat': ai_chat_view()
-    elif st.session_state.view == 'settings': settings_view()
-    elif st.session_state.view == 'profile': profile_view()
+    elif st.session_state.view == 'research_cell': research_cell_view()
+    elif st.session_state.view == 'review_research': review_research_view()
+    elif st.session_state.view == 'quiz': st.title(t('quiz')); st.info("قريباً...")
+    elif st.session_state.view == 'settings': st.title(t('settings')); st.write("إعدادات الحساب...")
