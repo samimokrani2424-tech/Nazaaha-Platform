@@ -1,502 +1,413 @@
 import streamlit as st
+import pandas as pd
 import time
 import random
 import re
 from datetime import datetime
 
-# --- 1. إعدادات الصفحة (Wide Mode for LMS feel) ---
+# --- 1. إعدادات الصفحة (Professional Dashboard Layout) ---
 st.set_page_config(
     page_title="LMS - Université Constantine 3",
-    page_icon="🏛️",
+    page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- 2. قواعد البيانات والترجمة ---
-
-# هيكل جامعة قسنطينة 3 (بيانات حقيقية)
-const_3_data = {
-    "Faculté de Médecine": ["Médecine", "Pharmacie", "Médecine Dentaire"],
-    "Faculté d'Architecture et d'Urbanisme": ["Architecture", "Urbanisme", "Gestion des Villes"],
-    "Faculté des Arts et de la Culture": ["Arts Plastiques", "Arts Dramatiques", "Cinéma"],
-    "Faculté de Génie des Procédés": ["Génie Chimique", "Génie Pharmaceutique"],
-    "Faculté des Sciences Politiques": ["Sciences Politiques", "Relations Internationales"],
-    "Faculté des NTIC": ["Informatique (GL)", "Informatique (SI)", "Réseaux et Télécom"],
-    "Institut de Gestion des Techniques Urbaines": ["Génie Urbain", "Gestion de la ville"]
+# --- 2. البيانات الهيكلية (Data Models) ---
+FACULTIES = {
+    "Faculté de Médecine": ["Médecine", "Pharmacie", "Dentaire"],
+    "Faculté d'Architecture (Salah Boubnider)": ["Architecture", "Urbanisme", "Gestion des Villes"],
+    "Faculté des NTIC": ["Génie Logiciel", "I.A", "Réseaux", "Systèmes Embarqués"],
+    "Faculté des Arts": ["Arts Plastiques", "Cinéma", "Théâtre"],
+    "Génie des Procédés": ["Chimie", "Biologie", "Pharmaceutique"]
 }
 
-levels = ["Licence 1", "Licence 2", "Licence 3", "Master 1", "Master 2", "Doctorat"]
-
-tr = {
-    "ar": {
-        "dashboard": "لوحة القيادة",
-        "market": "المكتبة الرقمية",
-        "upload": "نشر الأبحاث (AI)",
-        "quiz": "لعبة التلخيص",
-        "settings": "الملف الشخصي",
-        "logout": "خروج",
-        "welcome": "أهلاً بك،",
-        "points_balance": "رصيد المعرفة",
-        "xp": "نقطة",
-        "my_books_count": "كتبي",
-        "level_status": "الحالة الأكاديمية",
-        "active_student": "طالب نشط",
-        "latest_books": "أحدث المصادر الأكاديمية",
-        "buy": "شراء",
-        "owned": "مملوك",
-        "upload_title": "مركز رفع الأبحاث",
-        "upload_sub": "سيقوم الذكاء الاصطناعي بتقييم المحتوى وتحديد سعره في السوق.",
-        "login_title": "بوابة الدخول الموحد",
-        "verify_msg": "رمز التحقق المرسل إلى: ",
-        "faculty": "الكلية",
-        "major": "التخصص"
-    },
-    "fr": {
-        "dashboard": "Tableau de bord",
-        "market": "Bibliothèque",
-        "upload": "Publier (IA)",
-        "quiz": "Jeu Résumé",
-        "settings": "Profil",
-        "logout": "Déconnexion",
-        "welcome": "Bienvenue, ",
-        "points_balance": "Solde de Points",
-        "xp": "PTS",
-        "my_books_count": "Mes Livres",
-        "level_status": "Statut",
-        "active_student": "Actif",
-        "latest_books": "Dernières Ressources",
-        "buy": "Acheter",
-        "owned": "Acquis",
-        "upload_title": "Centre de Publication",
-        "upload_sub": "L'IA évaluera le contenu et fixera son prix.",
-        "login_title": "Portail Authentification",
-        "verify_msg": "Code envoyé à : ",
-        "faculty": "Faculté",
-        "major": "Spécialité"
-    },
-    "en": {
-        "dashboard": "Dashboard",
-        "market": "Library",
-        "upload": "Upload (AI)",
-        "quiz": "Quiz Game",
-        "settings": "Profile",
-        "logout": "Logout",
-        "welcome": "Welcome, ",
-        "points_balance": "Points Balance",
-        "xp": "XP",
-        "my_books_count": "My Books",
-        "level_status": "Status",
-        "active_student": "Active",
-        "latest_books": "Latest Resources",
-        "buy": "Buy",
-        "owned": "Owned",
-        "upload_title": "Upload Center",
-        "upload_sub": "AI will evaluate content and set the price.",
-        "login_title": "Login Portal",
-        "verify_msg": "Code sent to: ",
-        "faculty": "Faculty",
-        "major": "Major"
-    }
-}
-
-# --- 3. إدارة الحالة (Session State) ---
-if 'users' not in st.session_state: st.session_state['users'] = {}
-if 'books' not in st.session_state:
-    st.session_state['books'] = [
-        {"id": 1, "title": "Urbanisme Durable", "author": "Dr. Ahmed", "price": 50, "downloads": 120, "type": "PDF", "cover": "🏙️"},
-        {"id": 2, "title": "Algorithmics 101", "author": "Prof. Sarah", "price": 60, "downloads": 45, "type": "PDF", "cover": "💻"},
-        {"id": 3, "title": "Anatomie Générale", "author": "Faculté Méd", "price": 75, "downloads": 300, "type": "PDF", "cover": "🫀"},
-        {"id": 4, "title": "Histoire de l'Art", "author": "Library", "price": 40, "downloads": 20, "type": "PDF", "cover": "🎨"}
-    ]
-if 'auth_state' not in st.session_state: st.session_state['auth_state'] = 'login'
-if 'current_user' not in st.session_state: st.session_state['current_user'] = None
-if 'lang' not in st.session_state: st.session_state['lang'] = 'ar'
-if 'temp_email' not in st.session_state: st.session_state['temp_email'] = ''
-if 'verification_code' not in st.session_state: st.session_state['verification_code'] = ''
-
-def t(key): return tr[st.session_state['lang']][key]
-
-# --- 4. التصميم الاحترافي (Moodle/LMS Style) ---
-def apply_lms_css():
-    font = "'Tajawal', sans-serif"
-    direction = "rtl" if st.session_state['lang'] == 'ar' else "ltr"
-    align = "right" if st.session_state['lang'] == 'ar' else "left"
-    
-    st.markdown(f"""
+# --- 3. المحرك البصري (Modern Python UI Engine) ---
+def load_custom_css():
+    st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;500;800&display=swap');
         
-        /* الهيكل العام */
-        .stApp {{
-            background-color: #f5f7fa; /* لون خلفية Moodle الرمادي الفاتح */
-            font-family: {font};
-        }}
-        
-        h1, h2, h3, h4, p, span, div {{
-            font-family: {font} !important;
-            direction: {direction};
-            text-align: {align};
-        }}
+        :root {
+            --primary: #2563eb;
+            --secondary: #f8fafc;
+            --text: #1e293b;
+            --accent: #f59e0b;
+        }
 
-        /* القائمة الجانبية */
-        section[data-testid="stSidebar"] {{
-            background-color: #2c3e50; /* لون داكن احترافي */
-            color: white;
-        }}
+        /* Global Reset */
+        .stApp {
+            background-color: #f1f5f9;
+            font-family: 'Tajawal', sans-serif;
+            color: var(--text);
+        }
         
-        /* بطاقات الداشبورد (Stats Cards) */
-        .stat-card {{
+        h1, h2, h3, h4, p, div, button, span {
+            font-family: 'Tajawal', sans-serif !important;
+        }
+
+        /* Sidebar Professional Look */
+        section[data-testid="stSidebar"] {
+            background-color: #ffffff;
+            border-right: 1px solid #e2e8f0;
+        }
+        
+        /* Cards & Containers */
+        .metric-card {
             background: white;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            border-left: 5px solid #3b82f6;
-            margin-bottom: 20px;
-        }}
-        
-        /* بطاقات الكتب (Course Cards) */
-        .course-card {{
-            background: white;
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            border: 1px solid #e2e8f0;
+            text-align: center;
             transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px rgba(0,0,0,0.05);
+            border-color: var(--primary);
+        }
+
+        /* Course/Book Grid Item */
+        .grid-item {
+            background: white;
+            border-radius: 16px;
             overflow: hidden;
-            border: 1px solid #e1e4e8;
-            height: 100%;
-        }}
-        .course-card:hover {{
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-        }}
-        .card-header {{
-            height: 100px;
-            background: linear-gradient(135deg, #3b82f6, #1e3a8a);
+            border: 1px solid #e2e8f0;
+            transition: transform 0.2s;
+            margin-bottom: 20px;
+        }
+        .grid-item:hover {
+            border-color: var(--primary);
+            transform: scale(1.01);
+        }
+        .grid-header {
+            height: 120px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
             color: white;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 3rem;
-        }}
-        .card-body {{
+        }
+        .grid-body {
             padding: 15px;
-        }}
+        }
         
-        /* الأزرار */
-        .stButton button {{
-            width: 100%;
+        /* Custom Buttons */
+        .stButton button {
             border-radius: 8px;
             font-weight: 600;
-        }}
+            border: none;
+            transition: 0.2s;
+        }
         
-        /* شريط علوي (Fake Navbar) */
-        .top-nav {{
-            background: white;
-            padding: 15px 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }}
-        
-        /* صفحة الدخول */
-        .login-container {{
-            max-width: 450px;
-            margin: 0 auto;
-            background: white;
+        /* Login Box */
+        .auth-container {
+            max-width: 400px;
+            margin: 50px auto;
             padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }}
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
     </style>
     """, unsafe_allow_html=True)
 
-apply_lms_css()
+load_custom_css()
 
-# --- 5. المنطق (Logic) ---
-def validate_email(email):
-    return re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email) is not None
+# --- 4. إدارة الحالة (Session State) ---
+if 'state' not in st.session_state:
+    st.session_state['state'] = {
+        'auth_status': 'login', # login, verify, authenticated
+        'user': None,
+        'lang': 'ar',
+        'temp_email': '',
+        'code': '',
+        'users_db': {},
+        'library': [
+            {"id": 1, "title": "Python for Data Science", "author": "Dr. Amine", "price": 45, "downloads": 80, "icon": "🐍", "category": "NTIC"},
+            {"id": 2, "title": "Urban Planning 101", "author": "Arch. Sara", "price": 55, "downloads": 25, "icon": "🏙️", "category": "Architecture"},
+            {"id": 3, "title": "Clinical Anatomy", "author": "Fac. Médecine", "price": 70, "downloads": 150, "icon": "🫀", "category": "Médecine"}
+        ]
+    }
 
-# --- 6. الواجهات (Views) ---
+# اختصار للوصول للحالة
+S = st.session_state['state']
 
-def login_view():
-    # تصميم صفحة دخول مركزية ونظيفة
-    col1, col2, col3 = st.columns([1, 2, 1])
+# --- 5. الوظائف المنطقية (Backend Logic) ---
+def verify_email_format(email):
+    return re.match(r"[^@]+@[^@]+\.[^@]+", email)
+
+def login_user(email, password):
+    if email in S['users_db'] and S['users_db'][email]['password'] == password:
+        S['temp_email'] = email
+        S['code'] = str(random.randint(1000, 9999))
+        S['auth_status'] = 'verify'
+        return True
+    return False
+
+def register_user(name, email, password, fac, spec):
+    if email in S['users_db']: return False
+    S['users_db'][email] = {
+        "name": name, "password": password, "faculty": fac, 
+        "specialty": spec, "points": 100, "library": []
+    }
+    return True
+
+# --- 6. واجهات المستخدم (UI Views) ---
+
+def render_login():
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 1, 1])
+    
     with col2:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown(f"""
-        <div class="login-container">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h1 style="color:#1e3a8a; margin:0;">Université Constantine 3</h1>
-                <p style="color:#64748b;">Salah Boubnider | LMS Platform</p>
+        st.markdown("""
+        <div class="auth-container">
+            <div style="text-align:center; margin-bottom:20px;">
+                <h1 style="color:#2563eb; margin:0;">UC3 Portal</h1>
+                <p style="color:gray;">Student Academic Platform</p>
             </div>
         """, unsafe_allow_html=True)
         
-        # اختيار اللغة
-        l_col1, l_col2, l_col3 = st.columns(3)
-        if l_col1.button("العربية"): st.session_state['lang'] = 'ar'; st.rerun()
-        if l_col2.button("Français"): st.session_state['lang'] = 'fr'; st.rerun()
-        if l_col3.button("English"): st.session_state['lang'] = 'en'; st.rerun()
-
-        tab1, tab2 = st.tabs([t('login_title'), "تسجيل جديد"])
+        tab1, tab2 = st.tabs(["Login", "Register"])
         
         with tab1:
-            email = st.text_input("Email", key="l_email")
+            email = st.text_input("Email", key="l_email", placeholder="student@univ-constantine3.dz")
             password = st.text_input("Password", type="password", key="l_pass")
-            if st.button("الدخول", type="primary"):
-                if email in st.session_state['users'] and st.session_state['users'][email]['password'] == password:
-                    code = str(random.randint(1000, 9999))
-                    st.session_state['verification_code'] = code
-                    st.session_state['temp_email'] = email
-                    st.session_state['auth_state'] = 'verify'
-                    st.rerun()
+            if st.button("Secure Login", type="primary", use_container_width=True):
+                if not login_user(email, password):
+                    st.error("Invalid credentials or user not found.")
                 else:
-                    st.error("بيانات خاطئة")
+                    st.rerun()
         
         with tab2:
-            s_name = st.text_input("الاسم الكامل")
-            s_email = st.text_input("Email", key="s_email")
-            s_pass = st.text_input("Password", type="password", key="s_pass")
+            r_name = st.text_input("Full Name")
+            r_email = st.text_input("University Email", key="r_email")
+            r_pass = st.text_input("New Password", type="password", key="r_pass")
+            r_fac = st.selectbox("Faculty", list(FACULTIES.keys()))
+            r_spec = st.selectbox("Major", FACULTIES[r_fac])
             
-            s_fac = st.selectbox(t('faculty'), list(const_3_data.keys()))
-            s_spec = st.selectbox(t('major'), const_3_data[s_fac])
-            s_lvl = st.selectbox("Level", levels)
-            
-            if st.button("إنشاء حساب"):
-                if validate_email(s_email) and s_email not in st.session_state['users']:
-                    st.session_state['users'][s_email] = {
-                        "name": s_name, "password": s_pass, "faculty": s_fac,
-                        "specialty": s_spec, "level": s_lvl, "points": 100,
-                        "my_books": [], "avatar": "🎓"
-                    }
-                    st.success("تم التسجيل! سجل دخولك الآن.")
+            if st.button("Create Account", type="secondary", use_container_width=True):
+                if verify_email_format(r_email):
+                    if register_user(r_name, r_email, r_pass, r_fac, r_spec):
+                        st.success("Account created! Please login.")
+                    else:
+                        st.error("Email already exists.")
                 else:
-                    st.error("خطأ في البيانات")
+                    st.error("Invalid Email format.")
         
         st.markdown("</div>", unsafe_allow_html=True)
 
-def verify_view():
-    col1, col2, col3 = st.columns([1, 2, 1])
+def render_verify():
+    col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
         st.markdown(f"""
-        <div class="login-container" style="text-align:center;">
-            <h2>🔐 التحقق الأمني</h2>
-            <p>{t('verify_msg')} <b>{st.session_state['temp_email']}</b></p>
-            <div style="background:#fef3c7; padding:10px; border-radius:5px; margin:10px 0;">
-                كود المحاكاة: <b>{st.session_state['verification_code']}</b>
+        <div class="auth-container" style="text-align:center;">
+            <h2>🔐 Security Check</h2>
+            <p>We sent a code to <b>{S['temp_email']}</b></p>
+            <div style="background:#fef9c3; padding:10px; border-radius:8px; margin:15px 0; color:#854d0e; font-weight:bold;">
+                Simulation Code: {S['code']}
             </div>
         </div>
         """, unsafe_allow_html=True)
         
-        code = st.text_input("Code", max_chars=4)
-        if st.button("تأكيد"):
-            if code == st.session_state['verification_code']:
-                st.session_state['current_user'] = st.session_state['users'][st.session_state['temp_email']]
-                st.session_state['auth_state'] = 'dashboard'
+        code_in = st.text_input("Enter 4-Digit Code", max_chars=4, key="v_code")
+        if st.button("Verify Access", type="primary", use_container_width=True):
+            if code_in == S['code']:
+                S['user'] = S['users_db'][S['temp_email']]
+                S['auth_status'] = 'authenticated'
                 st.rerun()
             else:
-                st.error("الكود خاطئ")
+                st.error("Wrong Code")
 
-def main_app():
-    user = st.session_state['current_user']
+def render_app():
+    user = S['user']
     
-    # --- Sidebar (LMS Navigation) ---
+    # --- Sidebar ---
     with st.sidebar:
-        st.image("https://cdn-icons-png.flaticon.com/512/3135/3135768.png", width=80)
+        st.image("https://cdn-icons-png.flaticon.com/512/3135/3135768.png", width=50)
         st.markdown(f"### {user['name']}")
-        st.caption(f"{user['faculty']}")
-        st.divider()
+        st.caption(f"{user['faculty']} | {user['specialty']}")
         
-        # قائمة تنقل مثل Moodle
-        menu = st.radio("", 
-            [t('dashboard'), t('market'), t('upload'), t('quiz'), t('settings')],
-            label_visibility="collapsed"
-        )
-        
-        st.markdown("---")
-        if st.button(t('logout')):
-            st.session_state['auth_state'] = 'login'
-            st.session_state['current_user'] = None
-            st.rerun()
-
-    # --- Top Navbar Simulation ---
-    st.markdown(f"""
-    <div class="top-nav">
-        <div>
-            <h3 style="margin:0; color:#1e3a8a;">🏛️ Université Constantine 3 LMS</h3>
-        </div>
-        <div style="display:flex; gap:20px; align-items:center;">
-            <span style="background:#eff6ff; padding:5px 15px; border-radius:20px; color:#1e40af; font-weight:bold;">
-                {user['points']} {t('xp')} 💎
-            </span>
-            <span>{user['avatar']}</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # --- 1. Dashboard (لوحة القيادة) ---
-    if menu == t('dashboard'):
-        # بطاقات الإحصائيات
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(f"""
-            <div class="stat-card">
-                <h4 style="color:gray;">{t('points_balance')}</h4>
-                <h2 style="color:#3b82f6; margin:0;">{user['points']}</h2>
-            </div>""", unsafe_allow_html=True)
-        with col2:
-            st.markdown(f"""
-            <div class="stat-card" style="border-left-color: #10b981;">
-                <h4 style="color:gray;">{t('my_books_count')}</h4>
-                <h2 style="color:#10b981; margin:0;">{len(user['my_books'])}</h2>
-            </div>""", unsafe_allow_html=True)
-        with col3:
-            st.markdown(f"""
-            <div class="stat-card" style="border-left-color: #f59e0b;">
-                <h4 style="color:gray;">{t('level_status')}</h4>
-                <h4 style="color:#f59e0b; margin:0;">{t('active_student')}</h4>
-            </div>""", unsafe_allow_html=True)
-
-        st.subheader(f"📚 {t('latest_books')}")
-        
-        # عرض الكتب بشكل شبكة (Grid)
-        cols = st.columns(3)
-        for i, book in enumerate(st.session_state['books'][:6]): # عرض أول 6 كتب فقط
-            with cols[i % 3]:
-                dyn_price = book['price'] + book['downloads']
-                st.markdown(f"""
-                <div class="course-card">
-                    <div class="card-header">{book['cover']}</div>
-                    <div class="card-body">
-                        <h4>{book['title']}</h4>
-                        <p style="font-size:0.8rem; color:gray;">{book['author']} | ⬇️ {book['downloads']}</p>
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="color:#d97706; font-weight:bold;">{dyn_price} XP</span>
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                is_owned = any(b['id'] == book['id'] for b in user['my_books'])
-                if is_owned:
-                    st.button(f"✅ {t('owned')}", key=f"db_btn_{i}", disabled=True)
-                else:
-                    if st.button(f"{t('buy')}", key=f"db_btn_{i}"):
-                        if user['points'] >= dyn_price:
-                            user['points'] -= dyn_price
-                            user['my_books'].append(book)
-                            book['downloads'] += 1
-                            st.toast("Added to library!", icon="🎉")
-                            st.rerun()
-                        else:
-                            st.error("No points")
-                st.write("") # Spacer
-
-    # --- 2. Market (المكتبة) ---
-    elif menu == t('market'):
-        st.title(t('market'))
-        # نفس منطق عرض الكتب ولكن لكل الكتب
-        cols = st.columns(4)
-        for i, book in enumerate(st.session_state['books']):
-            with cols[i % 4]:
-                dyn_price = book['price'] + book['downloads']
-                st.markdown(f"""
-                <div class="course-card">
-                    <div class="card-header">{book['cover']}</div>
-                    <div class="card-body">
-                        <h5>{book['title']}</h5>
-                        <p style="font-size:0.8rem;">{dyn_price} XP</p>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-                if not any(b['id'] == book['id'] for b in user['my_books']):
-                    if st.button(t('buy'), key=f"mkt_{i}"):
-                         if user['points'] >= dyn_price:
-                            user['points'] -= dyn_price
-                            user['my_books'].append(book)
-                            book['downloads'] += 1
-                            st.rerun()
-                else:
-                    st.button("✅", key=f"mkt_{i}", disabled=True)
-
-    # --- 3. Upload (النشر) ---
-    elif menu == t('upload'):
+        # Live Wallet Widget
         st.markdown(f"""
-        <div style="background:white; padding:30px; border-radius:15px; border:2px dashed #cbd5e1; text-align:center;">
-            <h1>📤 {t('upload_title')}</h1>
-            <p>{t('upload_desc')}</p>
+        <div style="background:#eff6ff; padding:15px; border-radius:10px; border:1px solid #bfdbfe; margin-bottom:20px;">
+            <p style="margin:0; color:#1e40af; font-size:0.8rem;">Current Balance</p>
+            <h2 style="margin:0; color:#1d4ed8;">{user['points']} XP</h2>
         </div>
         """, unsafe_allow_html=True)
         
-        file = st.file_uploader("", type="pdf")
-        title = st.text_input("Title / العنوان")
+        nav = st.radio("MENU", ["Dashboard", "Library (Market)", "Upload Center (AI)", "Quiz Challenge", "Profile"], label_visibility="collapsed")
         
-        if file and st.button("Start AI Analysis 🤖"):
-            with st.spinner("AI analyzing academic quality..."):
-                time.sleep(2)
-                score = random.randint(60, 100)
-                price = random.randint(40, 80)
+        st.markdown("---")
+        if st.button("Logout", use_container_width=True):
+            S['auth_status'] = 'login'
+            S['user'] = None
+            st.rerun()
+
+    # --- Main Content Area ---
+    
+    # 1. Dashboard
+    if nav == "Dashboard":
+        st.title("📊 Dashboard Overview")
+        
+        # KPI Metrics
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Total XP", user['points'], "+10 today")
+        k2.metric("Library Books", len(user['library']), "Owned")
+        k3.metric("Academic Rank", "Scholar", "Level 2")
+        k4.metric("Completed Quizzes", "3", "+1 this week")
+        
+        st.markdown("### 📅 Recent Activity")
+        st.info("Welcome back! New academic resources in 'Architecture' are trending.")
+
+    # 2. Library (The Market)
+    elif nav == "Library (Market)":
+        st.title("📚 Academic Market")
+        
+        # Filter & Search
+        col_s1, col_s2 = st.columns([3, 1])
+        search = col_s1.text_input("Search resources...", placeholder="Python, Anatomy, etc.")
+        sort = col_s2.selectbox("Sort by", ["Popularity", "Price: Low to High"])
+        
+        # Books Grid
+        cols = st.columns(3)
+        for i, book in enumerate(S['library']):
+            dynamic_price = book['price'] + int(book['downloads'] * 0.1) # Dynamic pricing algorithm
+            
+            with cols[i % 3]:
+                st.markdown(f"""
+                <div class="grid-item">
+                    <div class="grid-header">{book['icon']}</div>
+                    <div class="grid-body">
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="background:#f1f5f9; padding:2px 8px; border-radius:10px; font-size:0.7rem;">{book['category']}</span>
+                            <span style="color:gray; font-size:0.8rem;">⬇️ {book['downloads']}</span>
+                        </div>
+                        <h4 style="margin:10px 0; color:#1e293b;">{book['title']}</h4>
+                        <p style="color:gray; font-size:0.9rem;">{book['author']}</p>
+                        <h3 style="color:#d97706;">{dynamic_price} XP</h3>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
                 
-                st.success(f"Approved! Quality Score: {score}%")
-                st.info(f"Market Price set to: {price} XP")
+                # Buy Logic
+                is_owned = any(b['id'] == book['id'] for b in user['library'])
+                if is_owned:
+                    st.button("✅ Owned", key=f"btn_{i}", disabled=True, use_container_width=True)
+                else:
+                    if st.button(f"Buy Now", key=f"btn_{i}", use_container_width=True):
+                        if user['points'] >= dynamic_price:
+                            user['points'] -= dynamic_price
+                            user['library'].append(book)
+                            book['downloads'] += 1
+                            st.toast(f"Successfully bought {book['title']}!", icon="🎉")
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error("Insufficient XP Balance")
+
+    # 3. Upload Center (AI Simulation)
+    elif nav == "Upload Center (AI)":
+        st.title("📤 AI Publication Center")
+        
+        col_u1, col_u2 = st.columns([1, 1])
+        
+        with col_u1:
+            st.markdown("""
+            <div class="metric-card" style="text-align:left;">
+                <h3>How it works?</h3>
+                <ol>
+                    <li>Upload your PDF research/summary.</li>
+                    <li><b>AI Engine</b> scans for academic relevance.</li>
+                    <li>System assigns a <b>Quality Score</b>.</li>
+                    <li>Price is set automatically based on score.</li>
+                </ol>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col_u2:
+            uploaded = st.file_uploader("Drop your PDF here", type="pdf")
+            title = st.text_input("Resource Title")
+            
+            if uploaded and st.button("Start Analysis 🚀", use_container_width=True):
+                progress = st.progress(0)
+                status = st.empty()
                 
-                st.session_state['books'].append({
-                    "id": len(st.session_state['books'])+1,
-                    "title": title if title else "New Doc",
+                status.write("🔍 Scanning document structure...")
+                time.sleep(1)
+                progress.progress(30)
+                
+                status.write("🧠 Analyzing semantic content...")
+                time.sleep(1)
+                progress.progress(70)
+                
+                status.write("💰 Calculating market value...")
+                time.sleep(1)
+                progress.progress(100)
+                
+                # Results
+                score = random.randint(65, 99)
+                price = int(score * 0.8)
+                
+                st.success(f"Analysis Complete! Quality Score: {score}/100")
+                st.metric("Market Value", f"{price} XP", "+10 XP Bonus for you")
+                
+                user['points'] += 10
+                S['library'].append({
+                    "id": len(S['library'])+1,
+                    "title": title if title else "New User Upload",
                     "author": user['name'],
                     "price": price,
                     "downloads": 0,
-                    "type": "PDF",
-                    "cover": "📄"
+                    "icon": "📄",
+                    "category": user['specialty']
                 })
-                user['points'] += 15
                 st.balloons()
 
-    # --- 4. Quiz ---
-    elif menu == t('quiz'):
-        st.title(f"🧠 {t('quiz')}")
-        if not user['my_books']:
-            st.warning("Please buy books first.")
+    # 4. Quiz
+    elif nav == "Quiz Challenge":
+        st.title("🧠 Active Recall Quiz")
+        
+        if not user['library']:
+            st.warning("Please purchase a book from the library first to generate a quiz.")
         else:
-            bk = st.selectbox("Choose Book", [b['title'] for b in user['my_books']])
-            if st.button("Generate AI Quiz"):
-                with st.spinner("Reading book content..."):
+            selected_book = st.selectbox("Select a resource to review:", [b['title'] for b in user['library']])
+            
+            if st.button("Generate AI Quiz", type="primary"):
+                with st.spinner("Generating questions..."):
                     time.sleep(1.5)
-                st.markdown(f"### Question about: {bk}")
-                st.write("What is the main hypothesis discussed in Chapter 2?")
-                st.radio("Answer:", ["Option A", "Option B", "Option C"])
+                
+                st.markdown(f"### Topic: {selected_book}")
+                st.markdown("**Q1: What is the core concept discussed in Chapter 1 regarding this topic?**")
+                
+                ans = st.radio("Select the best answer:", [
+                    "The theoretical framework of modern systems.",
+                    "The historical context of the 19th century.",
+                    "The basic syntax and variable definitions."
+                ])
+                
                 if st.button("Submit Answer"):
                     if random.choice([True, False]):
+                        st.success("Correct! You earned +20 XP")
                         user['points'] += 20
-                        st.success("Correct! +20 XP")
                     else:
+                        st.error("Incorrect. Try reading the summary again. -5 XP")
                         user['points'] -= 5
-                        st.error("Wrong! -5 XP")
 
-    # --- 5. Settings ---
-    elif menu == t('settings'):
-        st.title(t('settings'))
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown("### Change Language")
-            lc = st.radio("", ["العربية", "Français", "English"])
-            if st.button("Save Language"):
-                if lc == "العربية": st.session_state['lang'] = 'ar'
-                elif lc == "Français": st.session_state['lang'] = 'fr'
-                else: st.session_state['lang'] = 'en'
-                st.rerun()
-        with c2:
-            st.markdown("### Profile Pic")
-            av = st.selectbox("Avatar", ["🎓", "👨‍🏫", "👩‍🔬", "💻"])
-            if st.button("Update Avatar"):
-                user['avatar'] = av
-                st.rerun()
+    # 5. Profile
+    elif nav == "Profile":
+        st.title("⚙️ Settings")
+        st.text_input("Full Name", value=user['name'])
+        st.text_input("Email", value=S['temp_email'], disabled=True)
+        st.selectbox("Language", ["English", "Français", "العربية"])
+        st.button("Save Changes")
 
-# --- التشغيل الرئيسي ---
-if st.session_state['auth_state'] == 'login':
-    login_view()
-elif st.session_state['auth_state'] == 'verify':
-    verify_view()
+# --- Main Execution Flow ---
+if S['auth_status'] == 'login':
+    render_login()
+elif S['auth_status'] == 'verify':
+    render_verify()
 else:
-    main_app()
+    render_app()
