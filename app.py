@@ -4,17 +4,17 @@ import random
 import re
 from datetime import datetime
 
-# --- 1. إعدادات الصفحة ---
+# --- 1. إعدادات الصفحة (Wide Mode for LMS feel) ---
 st.set_page_config(
-    page_title="بوابة الطالب | جامعة قسنطينة 3",
-    page_icon="🎓",
+    page_title="LMS - Université Constantine 3",
+    page_icon="🏛️",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# --- 2. قواعد البيانات (الهيكل الأكاديمي والترجمة) ---
+# --- 2. قواعد البيانات والترجمة ---
 
-# هيكل جامعة قسنطينة 3 (صالح بوبنيدر)
+# هيكل جامعة قسنطينة 3 (بيانات حقيقية)
 const_3_data = {
     "Faculté de Médecine": ["Médecine", "Pharmacie", "Médecine Dentaire"],
     "Faculté d'Architecture et d'Urbanisme": ["Architecture", "Urbanisme", "Gestion des Villes"],
@@ -25,492 +25,478 @@ const_3_data = {
     "Institut de Gestion des Techniques Urbaines": ["Génie Urbain", "Gestion de la ville"]
 }
 
-levels = ["Licence", "Master 1", "Master 2", "Doctorat", "École Supérieure"]
+levels = ["Licence 1", "Licence 2", "Licence 3", "Master 1", "Master 2", "Doctorat"]
 
-# قاموس الترجمة (عربي - فرنسي - إنجليزي)
 tr = {
     "ar": {
-        "login": "تسجيل الدخول",
-        "signup": "تسجيل طالب جديد",
-        "email": "البريد الإلكتروني الجامعي",
-        "pass": "كلمة المرور",
-        "name": "الاسم الكامل",
-        "faculty": "الكلية",
-        "specialty": "التخصص",
-        "level": "المستوى الدراسي",
-        "login_btn": "دخول آمن",
-        "signup_btn": "إنشاء حساب أكاديمي",
-        "verify_title": "التحقق الأمني",
-        "verify_msg": "تم إرسال رمز التحقق إلى بريدك الإلكتروني: ",
-        "code_label": "أدخل الرمز (4 أرقام)",
-        "verify_btn": "تأكيد الدخول",
-        "welcome": "مرحباً بك في فضاء المعرفة",
+        "dashboard": "لوحة القيادة",
         "market": "المكتبة الرقمية",
-        "upload": "نشر وتقييم (AI)",
-        "quiz": "لعبة 'لخص لي'",
-        "settings": "الإعدادات",
+        "upload": "نشر الأبحاث (AI)",
+        "quiz": "لعبة التلخيص",
+        "settings": "الملف الشخصي",
         "logout": "خروج",
+        "welcome": "أهلاً بك،",
+        "points_balance": "رصيد المعرفة",
+        "xp": "نقطة",
+        "my_books_count": "كتبي",
+        "level_status": "الحالة الأكاديمية",
+        "active_student": "طالب نشط",
+        "latest_books": "أحدث المصادر الأكاديمية",
         "buy": "شراء",
-        "price": "السعر",
-        "points": "نقطة",
-        "downloads": "تحميل",
-        "upload_title": "نشر محتوى أكاديمي",
-        "upload_desc": "سيقوم الذكاء الاصطناعي بتحليل الملف وتحديد سعره.",
-        "quiz_title": "اختبر فهمك واربح النقاط",
-        "quiz_btn": "توليد كويز (AI)",
-        "lang": "اللغة / Language",
-        "fb_link": "ربط حساب Facebook",
-        "interests": "الاهتمامات العلمية"
+        "owned": "مملوك",
+        "upload_title": "مركز رفع الأبحاث",
+        "upload_sub": "سيقوم الذكاء الاصطناعي بتقييم المحتوى وتحديد سعره في السوق.",
+        "login_title": "بوابة الدخول الموحد",
+        "verify_msg": "رمز التحقق المرسل إلى: ",
+        "faculty": "الكلية",
+        "major": "التخصص"
     },
     "fr": {
-        "login": "Connexion",
-        "signup": "Inscription",
-        "email": "Email Universitaire",
-        "pass": "Mot de passe",
-        "name": "Nom Complet",
-        "faculty": "Faculté",
-        "specialty": "Spécialité",
-        "level": "Niveau",
-        "login_btn": "Connexion Sécurisée",
-        "signup_btn": "Créer un compte",
-        "verify_title": "Vérification de Sécurité",
-        "verify_msg": "Code envoyé à votre email : ",
-        "code_label": "Entrez le code (4 chiffres)",
-        "verify_btn": "Confirmer",
-        "welcome": "Bienvenue dans votre espace",
-        "market": "Bibliothèque Numérique",
-        "upload": "Publier & Évaluer (IA)",
-        "quiz": "Jeu 'Résume-moi'",
-        "settings": "Paramètres",
+        "dashboard": "Tableau de bord",
+        "market": "Bibliothèque",
+        "upload": "Publier (IA)",
+        "quiz": "Jeu Résumé",
+        "settings": "Profil",
         "logout": "Déconnexion",
+        "welcome": "Bienvenue, ",
+        "points_balance": "Solde de Points",
+        "xp": "PTS",
+        "my_books_count": "Mes Livres",
+        "level_status": "Statut",
+        "active_student": "Actif",
+        "latest_books": "Dernières Ressources",
         "buy": "Acheter",
-        "price": "Prix",
-        "points": "pts",
-        "downloads": "téléchargements",
-        "upload_title": "Publier du contenu académique",
-        "upload_desc": "L'IA analysera le fichier et fixera son prix.",
-        "quiz_title": "Testez vos connaissances",
-        "quiz_btn": "Générer Quiz (IA)",
-        "lang": "Langue / Language",
-        "fb_link": "Lier Facebook",
-        "interests": "Intérêts Scientifiques"
+        "owned": "Acquis",
+        "upload_title": "Centre de Publication",
+        "upload_sub": "L'IA évaluera le contenu et fixera son prix.",
+        "login_title": "Portail Authentification",
+        "verify_msg": "Code envoyé à : ",
+        "faculty": "Faculté",
+        "major": "Spécialité"
     },
     "en": {
-        "login": "Login",
-        "signup": "New Student Registration",
-        "email": "University Email",
-        "pass": "Password",
-        "name": "Full Name",
-        "faculty": "Faculty",
-        "specialty": "Major",
-        "level": "Level",
-        "login_btn": "Secure Login",
-        "signup_btn": "Create Account",
-        "verify_title": "Security Verification",
-        "verify_msg": "Verification code sent to: ",
-        "code_label": "Enter Code (4 digits)",
-        "verify_btn": "Confirm",
-        "welcome": "Welcome to Knowledge Space",
-        "market": "Digital Library",
-        "upload": "Upload & AI Rate",
-        "quiz": "'Summarize Me' Game",
-        "settings": "Settings",
+        "dashboard": "Dashboard",
+        "market": "Library",
+        "upload": "Upload (AI)",
+        "quiz": "Quiz Game",
+        "settings": "Profile",
         "logout": "Logout",
+        "welcome": "Welcome, ",
+        "points_balance": "Points Balance",
+        "xp": "XP",
+        "my_books_count": "My Books",
+        "level_status": "Status",
+        "active_student": "Active",
+        "latest_books": "Latest Resources",
         "buy": "Buy",
-        "price": "Price",
-        "points": "pts",
-        "downloads": "downloads",
-        "upload_title": "Upload Academic Content",
-        "upload_desc": "AI will analyze the file and set the price.",
-        "quiz_title": "Test your knowledge",
-        "quiz_btn": "Generate Quiz (AI)",
-        "lang": "Language",
-        "fb_link": "Link Facebook",
-        "interests": "Scientific Interests"
+        "owned": "Owned",
+        "upload_title": "Upload Center",
+        "upload_sub": "AI will evaluate content and set the price.",
+        "login_title": "Login Portal",
+        "verify_msg": "Code sent to: ",
+        "faculty": "Faculty",
+        "major": "Major"
     }
 }
 
 # --- 3. إدارة الحالة (Session State) ---
-# تهيئة المتغيرات لضمان عدم حدوث أخطاء عند التحديث
-if 'users' not in st.session_state:
-    st.session_state['users'] = {}
+if 'users' not in st.session_state: st.session_state['users'] = {}
 if 'books' not in st.session_state:
     st.session_state['books'] = [
-        {"id": 1, "title": "Architecture Islamique", "author": "System", "price": 45, "downloads": 12, "type": "PDF"},
-        {"id": 2, "title": "Introduction à l'AI", "author": "System", "price": 55, "downloads": 30, "type": "PDF"},
+        {"id": 1, "title": "Urbanisme Durable", "author": "Dr. Ahmed", "price": 50, "downloads": 120, "type": "PDF", "cover": "🏙️"},
+        {"id": 2, "title": "Algorithmics 101", "author": "Prof. Sarah", "price": 60, "downloads": 45, "type": "PDF", "cover": "💻"},
+        {"id": 3, "title": "Anatomie Générale", "author": "Faculté Méd", "price": 75, "downloads": 300, "type": "PDF", "cover": "🫀"},
+        {"id": 4, "title": "Histoire de l'Art", "author": "Library", "price": 40, "downloads": 20, "type": "PDF", "cover": "🎨"}
     ]
-if 'auth_state' not in st.session_state: st.session_state['auth_state'] = 'login' 
+if 'auth_state' not in st.session_state: st.session_state['auth_state'] = 'login'
 if 'current_user' not in st.session_state: st.session_state['current_user'] = None
+if 'lang' not in st.session_state: st.session_state['lang'] = 'ar'
 if 'temp_email' not in st.session_state: st.session_state['temp_email'] = ''
 if 'verification_code' not in st.session_state: st.session_state['verification_code'] = ''
-if 'lang' not in st.session_state: st.session_state['lang'] = 'ar'
 
-def t(key):
-    return tr[st.session_state['lang']][key]
+def t(key): return tr[st.session_state['lang']][key]
 
-# --- 4. التصميم البصري (CSS) ---
-def apply_css():
-    font_family = "'Tajawal', sans-serif"
-    # ضبط الاتجاه بناءً على اللغة المختارة
+# --- 4. التصميم الاحترافي (Moodle/LMS Style) ---
+def apply_lms_css():
+    font = "'Tajawal', sans-serif"
     direction = "rtl" if st.session_state['lang'] == 'ar' else "ltr"
     align = "right" if st.session_state['lang'] == 'ar' else "left"
     
     st.markdown(f"""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
         
+        /* الهيكل العام */
         .stApp {{
-            font-family: {font_family};
-            background-color: #f3f4f6;
+            background-color: #f5f7fa; /* لون خلفية Moodle الرمادي الفاتح */
+            font-family: {font};
         }}
         
-        h1, h2, h3, h4, p, div, span, button, input {{
-            font-family: {font_family} !important;
+        h1, h2, h3, h4, p, span, div {{
+            font-family: {font} !important;
             direction: {direction};
             text-align: {align};
         }}
-        
-        /* بطاقة تسجيل الدخول */
-        .login-card {{
-            background: white;
-            padding: 3rem;
-            border-radius: 25px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
-            border: 1px solid #e5e7eb;
+
+        /* القائمة الجانبية */
+        section[data-testid="stSidebar"] {{
+            background-color: #2c3e50; /* لون داكن احترافي */
+            color: white;
         }}
         
-        /* كروت الكتب */
-        .book-card {{
+        /* بطاقات الداشبورد (Stats Cards) */
+        .stat-card {{
             background: white;
             padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            transition: transform 0.3s ease;
-            margin-bottom: 15px;
-            border-right: 5px solid #3b82f6;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-left: 5px solid #3b82f6;
+            margin-bottom: 20px;
         }}
-        .book-card:hover {{
+        
+        /* بطاقات الكتب (Course Cards) */
+        .course-card {{
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            border: 1px solid #e1e4e8;
+            height: 100%;
+        }}
+        .course-card:hover {{
             transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }}
+        .card-header {{
+            height: 100px;
+            background: linear-gradient(135deg, #3b82f6, #1e3a8a);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+        }}
+        .card-body {{
+            padding: 15px;
         }}
         
         /* الأزرار */
         .stButton button {{
-            background: linear-gradient(90deg, #1e3a8a 0%, #2563eb 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            padding: 0.5rem 1rem;
-            font-weight: bold;
-            transition: all 0.3s;
-        }}
-        .stButton button:hover {{
-            box-shadow: 0 5px 15px rgba(37, 99, 235, 0.3);
+            width: 100%;
+            border-radius: 8px;
+            font-weight: 600;
         }}
         
-        /* شارات */
-        .badge {{
-            background-color: #dbeafe;
-            color: #1e40af;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            font-weight: bold;
+        /* شريط علوي (Fake Navbar) */
+        .top-nav {{
+            background: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
         }}
         
-        /* حقول الإدخال */
-        .stTextInput input, .stSelectbox div[data-baseweb="select"] {{
-            border-radius: 10px;
-            border: 1px solid #d1d5db;
+        /* صفحة الدخول */
+        .login-container {{
+            max-width: 450px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         }}
     </style>
     """, unsafe_allow_html=True)
 
-apply_css()
+apply_lms_css()
 
-# --- 5. المنطق الوظيفي ---
-
+# --- 5. المنطق (Logic) ---
 def validate_email(email):
-    # التحقق من صيغة الإيميل باستخدام Regex
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(pattern, email) is not None
+    return re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email) is not None
 
-# --- 6. الواجهات ---
+# --- 6. الواجهات (Views) ---
 
-# أ) شاشة تسجيل الدخول والتسجيل
 def login_view():
+    # تصميم صفحة دخول مركزية ونظيفة
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        # العنوان الرئيسي
-        st.markdown(f"<h1 style='color:#1e3a8a; text-align:center;'>Université Constantine 3</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align:center; color:gray;'>Portal Étudiant / بوابة الطالب</p>", unsafe_allow_html=True)
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="login-container">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h1 style="color:#1e3a8a; margin:0;">Université Constantine 3</h1>
+                <p style="color:#64748b;">Salah Boubnider | LMS Platform</p>
+            </div>
+        """, unsafe_allow_html=True)
         
-        with st.container():
-            st.markdown('<div class="login-card">', unsafe_allow_html=True)
-            
-            # اختيار اللغة
-            lang_choice = st.radio("", ["العربية", "Français", "English"], horizontal=True)
-            if lang_choice == "العربية": st.session_state['lang'] = 'ar'
-            elif lang_choice == "Français": st.session_state['lang'] = 'fr'
-            else: st.session_state['lang'] = 'en'
-            
-            tab_login, tab_signup = st.tabs([t('login'), t('signup')])
-            
-            # --- تبويب الدخول ---
-            with tab_login:
-                email = st.text_input(t('email'), key="l_email")
-                password = st.text_input(t('pass'), type="password", key="l_pass")
-                
-                if st.button(t('login_btn')):
-                    if email in st.session_state['users'] and st.session_state['users'][email]['password'] == password:
-                        # إرسال كود التحقق (محاكاة)
-                        code = str(random.randint(1000, 9999))
-                        st.session_state['verification_code'] = code
-                        st.session_state['temp_email'] = email
-                        st.session_state['auth_state'] = 'verify'
-                        st.rerun()
-                    else:
-                        st.error("خطأ في البيانات (إذا كنت طالباً جديداً، يرجى التسجيل أولاً)")
-            
-            # --- تبويب التسجيل ---
-            with tab_signup:
-                s_email = st.text_input(t('email'), key="s_email")
-                s_pass = st.text_input(t('pass'), type="password", key="s_pass")
-                s_name = st.text_input(t('name'))
-                
-                # بيانات الجامعة (قسنطينة 3)
-                s_fac = st.selectbox(t('faculty'), list(const_3_data.keys()))
-                s_spec = st.selectbox(t('specialty'), const_3_data[s_fac])
-                s_level = st.selectbox(t('level'), levels)
-                
-                s_interests = st.multiselect(t('interests'), ["AI", "Literature", "Architecture", "Politics", "Arts"])
-                
-                if st.button(t('signup_btn')):
-                    if not validate_email(s_email):
-                        st.error("صيغة البريد خاطئة")
-                    elif s_email in st.session_state['users']:
-                        st.error("الحساب موجود مسبقاً")
-                    else:
-                        # إنشاء الحساب
-                        st.session_state['users'][s_email] = {
-                            "name": s_name,
-                            "password": s_pass,
-                            "faculty": s_fac,
-                            "specialty": s_spec,
-                            "level": s_level,
-                            "interests": s_interests,
-                            "points": 100, # نقاط البداية المجانية
-                            "my_books": [],
-                            "avatar": "👨‍🎓",
-                            "fb_linked": False
-                        }
-                        st.success("تم إنشاء الحساب بنجاح! يرجى الانتقال لتبويب 'تسجيل الدخول' للدخول.")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+        # اختيار اللغة
+        l_col1, l_col2, l_col3 = st.columns(3)
+        if l_col1.button("العربية"): st.session_state['lang'] = 'ar'; st.rerun()
+        if l_col2.button("Français"): st.session_state['lang'] = 'fr'; st.rerun()
+        if l_col3.button("English"): st.session_state['lang'] = 'en'; st.rerun()
 
-# ب) شاشة التحقق (Code Verification)
+        tab1, tab2 = st.tabs([t('login_title'), "تسجيل جديد"])
+        
+        with tab1:
+            email = st.text_input("Email", key="l_email")
+            password = st.text_input("Password", type="password", key="l_pass")
+            if st.button("الدخول", type="primary"):
+                if email in st.session_state['users'] and st.session_state['users'][email]['password'] == password:
+                    code = str(random.randint(1000, 9999))
+                    st.session_state['verification_code'] = code
+                    st.session_state['temp_email'] = email
+                    st.session_state['auth_state'] = 'verify'
+                    st.rerun()
+                else:
+                    st.error("بيانات خاطئة")
+        
+        with tab2:
+            s_name = st.text_input("الاسم الكامل")
+            s_email = st.text_input("Email", key="s_email")
+            s_pass = st.text_input("Password", type="password", key="s_pass")
+            
+            s_fac = st.selectbox(t('faculty'), list(const_3_data.keys()))
+            s_spec = st.selectbox(t('major'), const_3_data[s_fac])
+            s_lvl = st.selectbox("Level", levels)
+            
+            if st.button("إنشاء حساب"):
+                if validate_email(s_email) and s_email not in st.session_state['users']:
+                    st.session_state['users'][s_email] = {
+                        "name": s_name, "password": s_pass, "faculty": s_fac,
+                        "specialty": s_spec, "level": s_lvl, "points": 100,
+                        "my_books": [], "avatar": "🎓"
+                    }
+                    st.success("تم التسجيل! سجل دخولك الآن.")
+                else:
+                    st.error("خطأ في البيانات")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+
 def verify_view():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown(f"<h2 style='text-align:center;'>{t('verify_title')} 🔐</h2>", unsafe_allow_html=True)
-        st.info(f"{t('verify_msg')} **{st.session_state['temp_email']}**")
-        
-        # محاكاة وصول الإيميل (نعرض الكود للتجربة)
-        st.warning(f"🔔 SYSTEM MSG: Your Verification Code is **{st.session_state['verification_code']}**")
-        
-        code = st.text_input(t('code_label'), max_chars=4)
-        
-        if st.button(t('verify_btn')):
-            if code == st.session_state['verification_code']:
-                st.session_state['current_user'] = st.session_state['users'][st.session_state['temp_email']]
-                st.session_state['auth_state'] = 'dashboard'
-                st.success("Access Granted!")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("رمز خاطئ / Wrong Code")
-
-# ج) لوحة التحكم (المنصة الكاملة)
-def dashboard_view():
-    user = st.session_state['current_user']
-    email = st.session_state['temp_email'] # مفتاح المستخدم
-    
-    # --- القائمة الجانبية ---
-    with st.sidebar:
-        st.image("https://cdn-icons-png.flaticon.com/512/3135/3135768.png", width=100)
-        st.markdown(f"### {user['name']}")
-        st.markdown(f"**{user['faculty']}**")
-        st.caption(f"{user['specialty']}")
-        
-        # عرض النقاط
         st.markdown(f"""
-        <div style="background:#dbeafe; padding:10px; border-radius:10px; text-align:center; margin:10px 0;">
-            <h2 style="color:#1e40af; margin:0;">{user['points']}</h2>
-            <span style="color:#1e40af;">{t('points')} XP</span>
+        <div class="login-container" style="text-align:center;">
+            <h2>🔐 التحقق الأمني</h2>
+            <p>{t('verify_msg')} <b>{st.session_state['temp_email']}</b></p>
+            <div style="background:#fef3c7; padding:10px; border-radius:5px; margin:10px 0;">
+                كود المحاكاة: <b>{st.session_state['verification_code']}</b>
+            </div>
         </div>
         """, unsafe_allow_html=True)
         
-        menu = st.radio("", [t('market'), t('upload'), t('quiz'), t('settings')])
-        
+        code = st.text_input("Code", max_chars=4)
+        if st.button("تأكيد"):
+            if code == st.session_state['verification_code']:
+                st.session_state['current_user'] = st.session_state['users'][st.session_state['temp_email']]
+                st.session_state['auth_state'] = 'dashboard'
+                st.rerun()
+            else:
+                st.error("الكود خاطئ")
+
+def main_app():
+    user = st.session_state['current_user']
+    
+    # --- Sidebar (LMS Navigation) ---
+    with st.sidebar:
+        st.image("https://cdn-icons-png.flaticon.com/512/3135/3135768.png", width=80)
+        st.markdown(f"### {user['name']}")
+        st.caption(f"{user['faculty']}")
         st.divider()
+        
+        # قائمة تنقل مثل Moodle
+        menu = st.radio("", 
+            [t('dashboard'), t('market'), t('upload'), t('quiz'), t('settings')],
+            label_visibility="collapsed"
+        )
+        
+        st.markdown("---")
         if st.button(t('logout')):
             st.session_state['auth_state'] = 'login'
             st.session_state['current_user'] = None
             st.rerun()
 
-    # --- المحتوى الرئيسي ---
-    
-    # 1. المكتبة (السوق)
-    if menu == t('market'):
-        st.title(f"📚 {t('market')}")
-        st.markdown("---")
+    # --- Top Navbar Simulation ---
+    st.markdown(f"""
+    <div class="top-nav">
+        <div>
+            <h3 style="margin:0; color:#1e3a8a;">🏛️ Université Constantine 3 LMS</h3>
+        </div>
+        <div style="display:flex; gap:20px; align-items:center;">
+            <span style="background:#eff6ff; padding:5px 15px; border-radius:20px; color:#1e40af; font-weight:bold;">
+                {user['points']} {t('xp')} 💎
+            </span>
+            <span>{user['avatar']}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # --- 1. Dashboard (لوحة القيادة) ---
+    if menu == t('dashboard'):
+        # بطاقات الإحصائيات
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"""
+            <div class="stat-card">
+                <h4 style="color:gray;">{t('points_balance')}</h4>
+                <h2 style="color:#3b82f6; margin:0;">{user['points']}</h2>
+            </div>""", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"""
+            <div class="stat-card" style="border-left-color: #10b981;">
+                <h4 style="color:gray;">{t('my_books_count')}</h4>
+                <h2 style="color:#10b981; margin:0;">{len(user['my_books'])}</h2>
+            </div>""", unsafe_allow_html=True)
+        with col3:
+            st.markdown(f"""
+            <div class="stat-card" style="border-left-color: #f59e0b;">
+                <h4 style="color:gray;">{t('level_status')}</h4>
+                <h4 style="color:#f59e0b; margin:0;">{t('active_student')}</h4>
+            </div>""", unsafe_allow_html=True)
+
+        st.subheader(f"📚 {t('latest_books')}")
         
-        cols = st.columns(2)
-        for i, book in enumerate(st.session_state['books']):
-            # السعر الديناميكي: كل تحميل يزيد السعر 1 نقطة
-            dynamic_price = book['price'] + book['downloads']
-            
-            with cols[i % 2]:
+        # عرض الكتب بشكل شبكة (Grid)
+        cols = st.columns(3)
+        for i, book in enumerate(st.session_state['books'][:6]): # عرض أول 6 كتب فقط
+            with cols[i % 3]:
+                dyn_price = book['price'] + book['downloads']
                 st.markdown(f"""
-                <div class="book-card">
-                    <h3 style="color:#1e3a8a; margin:0;">{book['title']}</h3>
-                    <p style="color:gray; font-size:0.9rem;">{t('downloads')}: {book['downloads']}</p>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-                        <span class="badge">{book['type']}</span>
-                        <span style="font-weight:bold; color:#d97706;">{dynamic_price} {t('points')}</span>
+                <div class="course-card">
+                    <div class="card-header">{book['cover']}</div>
+                    <div class="card-body">
+                        <h4>{book['title']}</h4>
+                        <p style="font-size:0.8rem; color:gray;">{book['author']} | ⬇️ {book['downloads']}</p>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="color:#d97706; font-weight:bold;">{dyn_price} XP</span>
+                        </div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # التحقق من الملكية
                 is_owned = any(b['id'] == book['id'] for b in user['my_books'])
-                
                 if is_owned:
-                    st.button("✅ تملكه / Owned", key=f"owned_{i}", disabled=True)
+                    st.button(f"✅ {t('owned')}", key=f"db_btn_{i}", disabled=True)
                 else:
-                    if st.button(f"{t('buy')} (-{dynamic_price})", key=f"buy_{i}"):
-                        if user['points'] >= dynamic_price:
-                            # خصم النقاط
-                            user['points'] -= dynamic_price
+                    if st.button(f"{t('buy')}", key=f"db_btn_{i}"):
+                        if user['points'] >= dyn_price:
+                            user['points'] -= dyn_price
                             user['my_books'].append(book)
                             book['downloads'] += 1
-                            
-                            # مكافأة المؤلف
-                            if book['author'] in st.session_state['users']:
-                                st.session_state['users'][book['author']]['points'] += dynamic_price
-                                
-                            st.success("تم الشراء!")
+                            st.toast("Added to library!", icon="🎉")
                             st.rerun()
                         else:
-                            st.error("رصيدك غير كافٍ!")
+                            st.error("No points")
+                st.write("") # Spacer
 
-    # 2. النشر (AI Evaluation)
-    elif menu == t('upload'):
-        st.title(f"📤 {t('upload_title')}")
-        st.info(t('upload_desc'))
-        
-        uploaded_file = st.file_uploader("Upload PDF", type=['pdf'])
-        book_title = st.text_input("عنوان الكتاب")
-        
-        if uploaded_file and st.button("🚀 بدء التحليل والنشر"):
-            with st.spinner("جاري التحليل الأكاديمي بواسطة الذكاء الاصطناعي..."):
-                time.sleep(2.5) # محاكاة الوقت
-                
-                # تقييم عشوائي للجودة (محاكاة AI)
-                quality_score = random.randint(40, 100)
-                
-                if quality_score >= 50:
-                    suggested_price = random.randint(40, 60)
-                    st.balloons()
-                    st.success(f"✅ تمت الموافقة! جودة المحتوى: {quality_score}%")
-                    st.markdown(f"### السعر المقترح: {suggested_price} نقطة")
-                    
-                    new_book = {
-                        "id": len(st.session_state['books']) + 1,
-                        "title": book_title if book_title else "New Book",
-                        "author": email, # صاحب الكتاب
-                        "price": suggested_price,
-                        "downloads": 0,
-                        "type": "Upload"
-                    }
-                    st.session_state['books'].append(new_book)
-                    user['points'] += 10 # مكافأة فورية
-                    st.info("تمت إضافة الكتاب للسوق +10 نقاط مكافأة!")
+    # --- 2. Market (المكتبة) ---
+    elif menu == t('market'):
+        st.title(t('market'))
+        # نفس منطق عرض الكتب ولكن لكل الكتب
+        cols = st.columns(4)
+        for i, book in enumerate(st.session_state['books']):
+            with cols[i % 4]:
+                dyn_price = book['price'] + book['downloads']
+                st.markdown(f"""
+                <div class="course-card">
+                    <div class="card-header">{book['cover']}</div>
+                    <div class="card-body">
+                        <h5>{book['title']}</h5>
+                        <p style="font-size:0.8rem;">{dyn_price} XP</p>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                if not any(b['id'] == book['id'] for b in user['my_books']):
+                    if st.button(t('buy'), key=f"mkt_{i}"):
+                         if user['points'] >= dyn_price:
+                            user['points'] -= dyn_price
+                            user['my_books'].append(book)
+                            book['downloads'] += 1
+                            st.rerun()
                 else:
-                    st.error(f"❌ تم رفض المحتوى. الجودة ضعيفة ({quality_score}%)")
+                    st.button("✅", key=f"mkt_{i}", disabled=True)
 
-    # 3. لعبة الكويز
+    # --- 3. Upload (النشر) ---
+    elif menu == t('upload'):
+        st.markdown(f"""
+        <div style="background:white; padding:30px; border-radius:15px; border:2px dashed #cbd5e1; text-align:center;">
+            <h1>📤 {t('upload_title')}</h1>
+            <p>{t('upload_desc')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        file = st.file_uploader("", type="pdf")
+        title = st.text_input("Title / العنوان")
+        
+        if file and st.button("Start AI Analysis 🤖"):
+            with st.spinner("AI analyzing academic quality..."):
+                time.sleep(2)
+                score = random.randint(60, 100)
+                price = random.randint(40, 80)
+                
+                st.success(f"Approved! Quality Score: {score}%")
+                st.info(f"Market Price set to: {price} XP")
+                
+                st.session_state['books'].append({
+                    "id": len(st.session_state['books'])+1,
+                    "title": title if title else "New Doc",
+                    "author": user['name'],
+                    "price": price,
+                    "downloads": 0,
+                    "type": "PDF",
+                    "cover": "📄"
+                })
+                user['points'] += 15
+                st.balloons()
+
+    # --- 4. Quiz ---
     elif menu == t('quiz'):
-        st.title(f"🧠 {t('quiz_title')}")
-        
+        st.title(f"🧠 {t('quiz')}")
         if not user['my_books']:
-            st.warning("يجب أن تشتري كتباً أولاً لتلعب!")
+            st.warning("Please buy books first.")
         else:
-            book_choice = st.selectbox("اختر كتاباً للمراجعة", [b['title'] for b in user['my_books']])
-            
-            if st.button(t('quiz_btn')):
-                with st.status("AI يقرأ الكتاب ويولد الأسئلة..."):
+            bk = st.selectbox("Choose Book", [b['title'] for b in user['my_books']])
+            if st.button("Generate AI Quiz"):
+                with st.spinner("Reading book content..."):
                     time.sleep(1.5)
-                    st.write("استخراج المفاهيم الأساسية...")
-                    time.sleep(1)
-                
-                st.markdown(f"### سؤال حول: {book_choice}")
-                st.write("س: ما هي الفكرة المحورية التي يعالجها الفصل الثالث من هذا الكتاب؟")
-                
-                ans = st.radio("الإجابة:", ["التحليل البنيوي للنص", "تطور العمارة الحديثة", "تأثير السياسة على الاقتصاد"])
-                
-                if st.button("تحقق من الإجابة"):
-                    if random.random() > 0.5: # حظ 50%
-                        reward = 20
-                        user['points'] += reward
-                        st.balloons()
-                        st.success(f"إجابة صحيحة! +{reward} نقطة")
+                st.markdown(f"### Question about: {bk}")
+                st.write("What is the main hypothesis discussed in Chapter 2?")
+                st.radio("Answer:", ["Option A", "Option B", "Option C"])
+                if st.button("Submit Answer"):
+                    if random.choice([True, False]):
+                        user['points'] += 20
+                        st.success("Correct! +20 XP")
                     else:
-                        penalty = 10
-                        user['points'] -= penalty
-                        st.error(f"إجابة خاطئة! -{penalty} نقطة. ركز جيداً.")
+                        user['points'] -= 5
+                        st.error("Wrong! -5 XP")
 
-    # 4. الإعدادات
+    # --- 5. Settings ---
     elif menu == t('settings'):
-        st.title(f"⚙️ {t('settings')}")
-        
-        col_a, col_b = st.columns(2)
-        with col_a:
-            st.markdown("### الملف الشخصي")
-            new_av = st.selectbox("الصورة الرمزية", ["👨‍🎓", "👩‍🎓", "👨‍🏫", "👩‍🔬", "🎨", "💻"])
-            if st.button("تحديث الصورة"):
-                user['avatar'] = new_av
-                st.success("تم التحديث!")
+        st.title(t('settings'))
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("### Change Language")
+            lc = st.radio("", ["العربية", "Français", "English"])
+            if st.button("Save Language"):
+                if lc == "العربية": st.session_state['lang'] = 'ar'
+                elif lc == "Français": st.session_state['lang'] = 'fr'
+                else: st.session_state['lang'] = 'en'
                 st.rerun()
-        
-        with col_b:
-            st.markdown("### الأمان والربط")
-            if user['fb_linked']:
-                st.success("✅ حسابك مرتبط بـ Facebook")
-                if st.button("إلغاء الربط"):
-                    user['fb_linked'] = False
-                    st.rerun()
-            else:
-                if st.button(f"📘 {t('fb_link')}"):
-                    with st.spinner("جاري الاتصال بـ Facebook API..."):
-                        time.sleep(2)
-                        user['fb_linked'] = True
-                        st.success("تم الربط بنجاح!")
-                        st.rerun()
-                        
-        st.markdown("---")
-        st.markdown("### تغيير اللغة / Change Language")
-        l_options = ["العربية", "Français", "English"]
-        l_sel = st.radio("", l_options, horizontal=True)
-        if st.button("تأكيد اللغة"):
-            if l_sel == "العربية": st.session_state['lang'] = 'ar'
-            elif l_sel == "Français": st.session_state['lang'] = 'fr'
-            else: st.session_state['lang'] = 'en'
-            st.rerun()
+        with c2:
+            st.markdown("### Profile Pic")
+            av = st.selectbox("Avatar", ["🎓", "👨‍🏫", "👩‍🔬", "💻"])
+            if st.button("Update Avatar"):
+                user['avatar'] = av
+                st.rerun()
 
-# --- 7. الموجه الرئيسي (Router) ---
+# --- التشغيل الرئيسي ---
 if st.session_state['auth_state'] == 'login':
     login_view()
 elif st.session_state['auth_state'] == 'verify':
     verify_view()
 else:
-    dashboard_view()
+    main_app()
