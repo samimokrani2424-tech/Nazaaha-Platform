@@ -1,413 +1,734 @@
-import streamlit as st
-import pandas as pd
-import time
-import random
-import re
-from datetime import datetime
-
-# --- 1. إعدادات الصفحة (Professional Dashboard Layout) ---
-st.set_page_config(
-    page_title="LMS - Université Constantine 3",
-    page_icon="🎓",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# --- 2. البيانات الهيكلية (Data Models) ---
-FACULTIES = {
-    "Faculté de Médecine": ["Médecine", "Pharmacie", "Dentaire"],
-    "Faculté d'Architecture (Salah Boubnider)": ["Architecture", "Urbanisme", "Gestion des Villes"],
-    "Faculté des NTIC": ["Génie Logiciel", "I.A", "Réseaux", "Systèmes Embarqués"],
-    "Faculté des Arts": ["Arts Plastiques", "Cinéma", "Théâtre"],
-    "Génie des Procédés": ["Chimie", "Biologie", "Pharmaceutique"]
-}
-
-# --- 3. المحرك البصري (Modern Python UI Engine) ---
-def load_custom_css():
-    st.markdown("""
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة نزاهة | جامعة قسنطينة 3</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;500;800&display=swap');
+        body { font-family: 'Tajawal', sans-serif; background-color: #f3f4f6; }
+        .rtl { direction: rtl; }
+        .ltr { direction: ltr; }
         
-        :root {
-            --primary: #2563eb;
-            --secondary: #f8fafc;
-            --text: #1e293b;
-            --accent: #f59e0b;
-        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
 
-        /* Global Reset */
-        .stApp {
-            background-color: #f1f5f9;
-            font-family: 'Tajawal', sans-serif;
-            color: var(--text);
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
-        h1, h2, h3, h4, p, div, button, span {
-            font-family: 'Tajawal', sans-serif !important;
-        }
-
-        /* Sidebar Professional Look */
-        section[data-testid="stSidebar"] {
-            background-color: #ffffff;
-            border-right: 1px solid #e2e8f0;
-        }
-        
-        /* Cards & Containers */
-        .metric-card {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            border: 1px solid #e2e8f0;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-        .metric-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px rgba(0,0,0,0.05);
-            border-color: var(--primary);
-        }
-
-        /* Course/Book Grid Item */
-        .grid-item {
-            background: white;
-            border-radius: 16px;
-            overflow: hidden;
-            border: 1px solid #e2e8f0;
-            transition: transform 0.2s;
-            margin-bottom: 20px;
-        }
-        .grid-item:hover {
-            border-color: var(--primary);
-            transform: scale(1.01);
-        }
-        .grid-header {
-            height: 120px;
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
-        }
-        .grid-body {
-            padding: 15px;
-        }
-        
-        /* Custom Buttons */
-        .stButton button {
-            border-radius: 8px;
-            font-weight: 600;
-            border: none;
-            transition: 0.2s;
-        }
-        
-        /* Login Box */
-        .auth-container {
-            max-width: 400px;
-            margin: 50px auto;
-            padding: 40px;
-            background: white;
-            border-radius: 24px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
-    """, unsafe_allow_html=True)
+</head>
+<body>
+    <div id="root"></div>
 
-load_custom_css()
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
 
-# --- 4. إدارة الحالة (Session State) ---
-if 'state' not in st.session_state:
-    st.session_state['state'] = {
-        'auth_status': 'login', # login, verify, authenticated
-        'user': None,
-        'lang': 'ar',
-        'temp_email': '',
-        'code': '',
-        'users_db': {},
-        'library': [
-            {"id": 1, "title": "Python for Data Science", "author": "Dr. Amine", "price": 45, "downloads": 80, "icon": "🐍", "category": "NTIC"},
-            {"id": 2, "title": "Urban Planning 101", "author": "Arch. Sara", "price": 55, "downloads": 25, "icon": "🏙️", "category": "Architecture"},
-            {"id": 3, "title": "Clinical Anatomy", "author": "Fac. Médecine", "price": 70, "downloads": 150, "icon": "🫀", "category": "Médecine"}
-        ]
-    }
+        // --- Icons Component (Using SVG directly to avoid dependency issues) ---
+        const Icons = {
+            Book: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
+            Upload: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+            Brain: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>,
+            Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+            LogOut: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+            GraduationCap: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>,
+            LayoutDashboard: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+            CheckCircle: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+            Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+            Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+            Shield: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+            Coins: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16V8"/><path d="M8 12h8"/></svg>
+        };
 
-# اختصار للوصول للحالة
-S = st.session_state['state']
+        // --- Data Models ---
+        const UNIVERSITIES = {
+            "Faculté de Médecine": ["Médecine", "Pharmacie", "Médecine Dentaire"],
+            "Faculté d'Architecture et d'Urbanisme": ["Architecture", "Urbanisme", "Gestion des Villes"],
+            "Faculté des Arts et de la Culture": ["Arts Plastiques", "Arts Dramatiques", "Cinéma"],
+            "Faculté de Génie des Procédés": ["Génie Chimique", "Génie Pharmaceutique"],
+            "Faculté des Sciences Politiques": ["Sciences Politiques", "Relations Internationales"],
+            "Faculté des NTIC": ["Informatique (GL)", "Informatique (SI)", "Réseaux et Télécom"],
+            "Institut de Gestion des Techniques Urbaines": ["Génie Urbain", "Gestion de la ville"]
+        };
 
-# --- 5. الوظائف المنطقية (Backend Logic) ---
-def verify_email_format(email):
-    return re.match(r"[^@]+@[^@]+\.[^@]+", email)
+        const LEVELS = ["Licence 1", "Licence 2", "Licence 3", "Master 1", "Master 2", "Doctorat"];
 
-def login_user(email, password):
-    if email in S['users_db'] and S['users_db'][email]['password'] == password:
-        S['temp_email'] = email
-        S['code'] = str(random.randint(1000, 9999))
-        S['auth_status'] = 'verify'
-        return True
-    return False
+        const TRANSLATIONS = {
+            ar: {
+                title: "منصة نزاهة الأكاديمية",
+                tagline: "بوابتك نحو التميز الأكاديمي - جامعة قسنطينة 3",
+                login: "تسجيل الدخول",
+                signup: "إنشاء حساب",
+                email: "البريد الإلكتروني",
+                password: "كلمة المرور",
+                dashboard: "لوحة القيادة",
+                library: "المكتبة الرقمية",
+                upload: "مركز النشر",
+                quiz: "تحدي المعرفة",
+                settings: "الإعدادات",
+                points: "نقاط المعرفة",
+                buy: "شراء",
+                owned: "مملوك",
+                ai_check: "التحقق الذكي",
+                upload_text: "ارفع ملفاتك وسيقوم الذكاء الاصطناعي بتقييمها",
+                welcome: "مرحباً،",
+                logout: "خروج",
+                price: "السعر",
+                quality: "الجودة العلمية",
+                generated_quiz: "سؤال من كتابك",
+                submit: "تحقق من الإجابة",
+                correct: "إجابة صحيحة!",
+                wrong: "إجابة خاطئة",
+                download: "تحميل وقراءة",
+                search: "بحث في المكتبة..."
+            },
+            fr: {
+                title: "Plateforme Académique Nazaha",
+                tagline: "Votre portail vers l'excellence - Université Constantine 3",
+                login: "Connexion",
+                signup: "Inscription",
+                email: "Email",
+                password: "Mot de passe",
+                dashboard: "Tableau de bord",
+                library: "Bibliothèque",
+                upload: "Centre de Publication",
+                quiz: "Quiz de Connaissance",
+                settings: "Paramètres",
+                points: "Points de Savoir",
+                buy: "Acheter",
+                owned: "Acquis",
+                ai_check: "Vérification IA",
+                upload_text: "Téléchargez vos fichiers, l'IA les évaluera",
+                welcome: "Bienvenue, ",
+                logout: "Déconnexion",
+                price: "Prix",
+                quality: "Qualité",
+                generated_quiz: "Question générée",
+                submit: "Vérifier",
+                correct: "Correct!",
+                wrong: "Faux",
+                download: "Télécharger",
+                search: "Rechercher..."
+            },
+            en: {
+                title: "Nazaha Academic Platform",
+                tagline: "Your gateway to excellence - Constantine 3 University",
+                login: "Login",
+                signup: "Sign Up",
+                email: "Email",
+                password: "Password",
+                dashboard: "Dashboard",
+                library: "Library",
+                upload: "Upload Center",
+                quiz: "Knowledge Quiz",
+                settings: "Settings",
+                points: "Knowledge Points",
+                buy: "Buy",
+                owned: "Owned",
+                ai_check: "AI Check",
+                upload_text: "Upload files, AI will evaluate them",
+                welcome: "Welcome, ",
+                logout: "Logout",
+                price: "Price",
+                quality: "Quality",
+                generated_quiz: "Generated Question",
+                submit: "Verify Answer",
+                correct: "Correct!",
+                wrong: "Wrong",
+                download: "Download",
+                search: "Search..."
+            }
+        };
 
-def register_user(name, email, password, fac, spec):
-    if email in S['users_db']: return False
-    S['users_db'][email] = {
-        "name": name, "password": password, "faculty": fac, 
-        "specialty": spec, "points": 100, "library": []
-    }
-    return True
+        // --- Mock Data Initialization ---
+        const INITIAL_BOOKS = [
+            { id: 1, title: "Introduction à l'Architecture", author: "Dr. Amine", faculty: "Faculté d'Architecture et d'Urbanisme", price: 45, downloads: 120, quality: 85, type: "PDF", category: "Architecture" },
+            { id: 2, title: "Algorithmique Avancée", author: "Prof. Sara", faculty: "Faculté des NTIC", price: 60, downloads: 45, quality: 92, type: "PDF", category: "Informatique" },
+            { id: 3, "title": "Anatomie Humaine", "author": "Faculté Méd", "faculty": "Faculté de Médecine", "price": 75, "downloads": 300, "quality": 98, "type": "PDF", "category": "Médecine" }
+        ];
 
-# --- 6. واجهات المستخدم (UI Views) ---
+        // --- Main App Component ---
+        const App = () => {
+            // State
+            const [view, setView] = useState('login');
+            const [lang, setLang] = useState('ar');
+            const [user, setUser] = useState(null);
+            const [books, setBooks] = useState([]);
+            const [sidebarOpen, setSidebarOpen] = useState(true);
+            const [notification, setNotification] = useState(null);
 
-def render_login():
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 1, 1])
-    
-    with col2:
-        st.markdown("""
-        <div class="auth-container">
-            <div style="text-align:center; margin-bottom:20px;">
-                <h1 style="color:#2563eb; margin:0;">UC3 Portal</h1>
-                <p style="color:gray;">Student Academic Platform</p>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        tab1, tab2 = st.tabs(["Login", "Register"])
-        
-        with tab1:
-            email = st.text_input("Email", key="l_email", placeholder="student@univ-constantine3.dz")
-            password = st.text_input("Password", type="password", key="l_pass")
-            if st.button("Secure Login", type="primary", use_container_width=True):
-                if not login_user(email, password):
-                    st.error("Invalid credentials or user not found.")
-                else:
-                    st.rerun()
-        
-        with tab2:
-            r_name = st.text_input("Full Name")
-            r_email = st.text_input("University Email", key="r_email")
-            r_pass = st.text_input("New Password", type="password", key="r_pass")
-            r_fac = st.selectbox("Faculty", list(FACULTIES.keys()))
-            r_spec = st.selectbox("Major", FACULTIES[r_fac])
-            
-            if st.button("Create Account", type="secondary", use_container_width=True):
-                if verify_email_format(r_email):
-                    if register_user(r_name, r_email, r_pass, r_fac, r_spec):
-                        st.success("Account created! Please login.")
-                    else:
-                        st.error("Email already exists.")
-                else:
-                    st.error("Invalid Email format.")
-        
-        st.markdown("</div>", unsafe_allow_html=True)
+            // Auth Forms
+            const [loginData, setLoginData] = useState({ email: '', password: '' });
+            const [signupData, setSignupData] = useState({ name: '', email: '', password: '', faculty: '', specialty: '', level: '' });
+            const [isRegistering, setIsRegistering] = useState(false);
 
-def render_verify():
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        st.markdown(f"""
-        <div class="auth-container" style="text-align:center;">
-            <h2>🔐 Security Check</h2>
-            <p>We sent a code to <b>{S['temp_email']}</b></p>
-            <div style="background:#fef9c3; padding:10px; border-radius:8px; margin:15px 0; color:#854d0e; font-weight:bold;">
-                Simulation Code: {S['code']}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        code_in = st.text_input("Enter 4-Digit Code", max_chars=4, key="v_code")
-        if st.button("Verify Access", type="primary", use_container_width=True):
-            if code_in == S['code']:
-                S['user'] = S['users_db'][S['temp_email']]
-                S['auth_status'] = 'authenticated'
-                st.rerun()
-            else:
-                st.error("Wrong Code")
+            // Helper: Translate
+            const t = (k) => TRANSLATIONS[lang][k] || k;
+            const dir = lang === 'ar' ? 'rtl' : 'ltr';
 
-def render_app():
-    user = S['user']
-    
-    # --- Sidebar ---
-    with st.sidebar:
-        st.image("https://cdn-icons-png.flaticon.com/512/3135/3135768.png", width=50)
-        st.markdown(f"### {user['name']}")
-        st.caption(f"{user['faculty']} | {user['specialty']}")
-        
-        # Live Wallet Widget
-        st.markdown(f"""
-        <div style="background:#eff6ff; padding:15px; border-radius:10px; border:1px solid #bfdbfe; margin-bottom:20px;">
-            <p style="margin:0; color:#1e40af; font-size:0.8rem;">Current Balance</p>
-            <h2 style="margin:0; color:#1d4ed8;">{user['points']} XP</h2>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        nav = st.radio("MENU", ["Dashboard", "Library (Market)", "Upload Center (AI)", "Quiz Challenge", "Profile"], label_visibility="collapsed")
-        
-        st.markdown("---")
-        if st.button("Logout", use_container_width=True):
-            S['auth_status'] = 'login'
-            S['user'] = None
-            st.rerun()
+            // Initialize
+            useEffect(() => {
+                // Load from localStorage
+                const storedUser = localStorage.getItem('nazaha_user');
+                const storedBooks = localStorage.getItem('nazaha_books');
+                
+                if (storedUser) {
+                    setUser(JSON.parse(storedUser));
+                    setView('dashboard');
+                }
+                if (storedBooks) {
+                    setBooks(JSON.parse(storedBooks));
+                } else {
+                    setBooks(INITIAL_BOOKS);
+                    localStorage.setItem('nazaha_books', JSON.stringify(INITIAL_BOOKS));
+                }
+            }, []);
 
-    # --- Main Content Area ---
-    
-    # 1. Dashboard
-    if nav == "Dashboard":
-        st.title("📊 Dashboard Overview")
-        
-        # KPI Metrics
-        k1, k2, k3, k4 = st.columns(4)
-        k1.metric("Total XP", user['points'], "+10 today")
-        k2.metric("Library Books", len(user['library']), "Owned")
-        k3.metric("Academic Rank", "Scholar", "Level 2")
-        k4.metric("Completed Quizzes", "3", "+1 this week")
-        
-        st.markdown("### 📅 Recent Activity")
-        st.info("Welcome back! New academic resources in 'Architecture' are trending.")
+            // Notification Handler
+            const notify = (msg, type = 'success') => {
+                setNotification({ msg, type });
+                setTimeout(() => setNotification(null), 3000);
+            };
 
-    # 2. Library (The Market)
-    elif nav == "Library (Market)":
-        st.title("📚 Academic Market")
-        
-        # Filter & Search
-        col_s1, col_s2 = st.columns([3, 1])
-        search = col_s1.text_input("Search resources...", placeholder="Python, Anatomy, etc.")
-        sort = col_s2.selectbox("Sort by", ["Popularity", "Price: Low to High"])
-        
-        # Books Grid
-        cols = st.columns(3)
-        for i, book in enumerate(S['library']):
-            dynamic_price = book['price'] + int(book['downloads'] * 0.1) # Dynamic pricing algorithm
-            
-            with cols[i % 3]:
-                st.markdown(f"""
-                <div class="grid-item">
-                    <div class="grid-header">{book['icon']}</div>
-                    <div class="grid-body">
-                        <div style="display:flex; justify-content:space-between;">
-                            <span style="background:#f1f5f9; padding:2px 8px; border-radius:10px; font-size:0.7rem;">{book['category']}</span>
-                            <span style="color:gray; font-size:0.8rem;">⬇️ {book['downloads']}</span>
+            // Logic: AI Analysis Simulation (The "Smart" Logic ported to JS)
+            const analyzeFile = (file) => {
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        // Simulate AI Logic based on file size and name length
+                        const sizeScore = file.size > 10000 ? 30 : 10;
+                        const nameScore = file.name.length > 10 ? 20 : 5;
+                        const randomFactor = Math.floor(Math.random() * 40);
+                        
+                        const totalScore = Math.min(100, sizeScore + nameScore + randomFactor + 20); // Base 20
+                        const isAcademic = totalScore > 50;
+                        const price = Math.floor(totalScore * 0.8);
+                        
+                        resolve({ score: totalScore, price, isAcademic });
+                    }, 2500);
+                });
+            };
+
+            // Actions
+            const handleLogin = (e) => {
+                e.preventDefault();
+                // Simple mock auth
+                const users = JSON.parse(localStorage.getItem('nazaha_users_db') || '[]');
+                const found = users.find(u => u.email === loginData.email && u.password === loginData.password);
+                
+                if (found) {
+                    setUser(found);
+                    localStorage.setItem('nazaha_user', JSON.stringify(found));
+                    setView('dashboard');
+                    notify(t('welcome') + found.name);
+                } else {
+                    notify("Invalid credentials", 'error');
+                }
+            };
+
+            const handleSignup = (e) => {
+                e.preventDefault();
+                if(!signupData.name || !signupData.email) return notify("Please fill all fields", "error");
+                
+                const newUser = { ...signupData, points: 150, library: [], uploads: [] };
+                const users = JSON.parse(localStorage.getItem('nazaha_users_db') || '[]');
+                
+                if(users.find(u => u.email === newUser.email)) return notify("Email exists", "error");
+                
+                users.push(newUser);
+                localStorage.setItem('nazaha_users_db', JSON.stringify(users));
+                notify("Account created! Please login.");
+                setIsRegistering(false);
+            };
+
+            const handleLogout = () => {
+                localStorage.removeItem('nazaha_user');
+                setUser(null);
+                setView('login');
+            };
+
+            const handlePurchase = (book) => {
+                const dynamicPrice = book.price + Math.floor(book.downloads * 0.2);
+                
+                if (user.points >= dynamicPrice) {
+                    const updatedUser = { 
+                        ...user, 
+                        points: user.points - dynamicPrice,
+                        library: [...user.library, book]
+                    };
+                    
+                    const updatedBooks = books.map(b => 
+                        b.id === book.id ? {...b, downloads: b.downloads + 1} : b
+                    );
+
+                    setUser(updatedUser);
+                    setBooks(updatedBooks);
+                    localStorage.setItem('nazaha_user', JSON.stringify(updatedUser));
+                    localStorage.setItem('nazaha_books', JSON.stringify(updatedBooks));
+                    
+                    // Update DB for persistence
+                    const users = JSON.parse(localStorage.getItem('nazaha_users_db') || '[]');
+                    const userIdx = users.findIndex(u => u.email === user.email);
+                    if(userIdx >= 0) {
+                        users[userIdx] = updatedUser;
+                        localStorage.setItem('nazaha_users_db', JSON.stringify(users));
+                    }
+
+                    notify(`Successfully bought ${book.title}`);
+                } else {
+                    notify("Insufficient points!", "error");
+                }
+            };
+
+            // --- Components ---
+
+            const Sidebar = () => (
+                <div className={`fixed inset-y-0 ${lang === 'ar' ? 'right-0' : 'left-0'} w-64 bg-gray-900 text-white transform transition-transform duration-300 ease-in-out z-30 ${sidebarOpen ? 'translate-x-0' : (lang === 'ar' ? 'translate-x-full' : '-translate-x-full')} lg:translate-x-0 lg:static lg:inset-0 flex flex-col`}>
+                    <div className="h-20 flex items-center justify-center border-b border-gray-800 gap-2">
+                        <Icons.GraduationCap />
+                        <h1 className="text-xl font-bold">Nazaha LMS</h1>
+                    </div>
+                    
+                    <div className="p-4 flex items-center gap-3 border-b border-gray-800">
+                        <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-lg font-bold">
+                            {user?.name[0].toUpperCase()}
                         </div>
-                        <h4 style="margin:10px 0; color:#1e293b;">{book['title']}</h4>
-                        <p style="color:gray; font-size:0.9rem;">{book['author']}</p>
-                        <h3 style="color:#d97706;">{dynamic_price} XP</h3>
+                        <div>
+                            <p className="font-medium text-sm">{user?.name}</p>
+                            <p className="text-xs text-gray-400">{user?.faculty}</p>
+                        </div>
+                    </div>
+
+                    <nav className="flex-1 p-4 space-y-2">
+                        {[
+                            { id: 'dashboard', icon: <Icons.LayoutDashboard />, label: t('dashboard') },
+                            { id: 'library', icon: <Icons.Book />, label: t('library') },
+                            { id: 'upload', icon: <Icons.Upload />, label: t('upload') },
+                            { id: 'quiz', icon: <Icons.Brain />, label: t('quiz') },
+                            { id: 'settings', icon: <Icons.Settings />, label: t('settings') }
+                        ].map(item => (
+                            <button 
+                                key={item.id}
+                                onClick={() => setView(item.id)}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${view === item.id ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                            >
+                                {item.icon}
+                                <span>{item.label}</span>
+                            </button>
+                        ))}
+                    </nav>
+
+                    <div className="p-4 border-t border-gray-800">
+                        <button onClick={handleLogout} className="w-full flex items-center gap-2 text-red-400 hover:text-red-300 transition">
+                            <Icons.LogOut />
+                            <span>{t('logout')}</span>
+                        </button>
                     </div>
                 </div>
-                """, unsafe_allow_html=True)
-                
-                # Buy Logic
-                is_owned = any(b['id'] == book['id'] for b in user['library'])
-                if is_owned:
-                    st.button("✅ Owned", key=f"btn_{i}", disabled=True, use_container_width=True)
-                else:
-                    if st.button(f"Buy Now", key=f"btn_{i}", use_container_width=True):
-                        if user['points'] >= dynamic_price:
-                            user['points'] -= dynamic_price
-                            user['library'].append(book)
-                            book['downloads'] += 1
-                            st.toast(f"Successfully bought {book['title']}!", icon="🎉")
-                            time.sleep(1)
-                            st.rerun()
-                        else:
-                            st.error("Insufficient XP Balance")
+            );
 
-    # 3. Upload Center (AI Simulation)
-    elif nav == "Upload Center (AI)":
-        st.title("📤 AI Publication Center")
-        
-        col_u1, col_u2 = st.columns([1, 1])
-        
-        with col_u1:
-            st.markdown("""
-            <div class="metric-card" style="text-align:left;">
-                <h3>How it works?</h3>
-                <ol>
-                    <li>Upload your PDF research/summary.</li>
-                    <li><b>AI Engine</b> scans for academic relevance.</li>
-                    <li>System assigns a <b>Quality Score</b>.</li>
-                    <li>Price is set automatically based on score.</li>
-                </ol>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col_u2:
-            uploaded = st.file_uploader("Drop your PDF here", type="pdf")
-            title = st.text_input("Resource Title")
-            
-            if uploaded and st.button("Start Analysis 🚀", use_container_width=True):
-                progress = st.progress(0)
-                status = st.empty()
-                
-                status.write("🔍 Scanning document structure...")
-                time.sleep(1)
-                progress.progress(30)
-                
-                status.write("🧠 Analyzing semantic content...")
-                time.sleep(1)
-                progress.progress(70)
-                
-                status.write("💰 Calculating market value...")
-                time.sleep(1)
-                progress.progress(100)
-                
-                # Results
-                score = random.randint(65, 99)
-                price = int(score * 0.8)
-                
-                st.success(f"Analysis Complete! Quality Score: {score}/100")
-                st.metric("Market Value", f"{price} XP", "+10 XP Bonus for you")
-                
-                user['points'] += 10
-                S['library'].append({
-                    "id": len(S['library'])+1,
-                    "title": title if title else "New User Upload",
-                    "author": user['name'],
-                    "price": price,
-                    "downloads": 0,
-                    "icon": "📄",
-                    "category": user['specialty']
-                })
-                st.balloons()
+            const AuthView = () => (
+                <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-gray-900 p-4" dir={dir}>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                        <div className="p-8 text-center bg-blue-50">
+                            <h1 className="text-3xl font-bold text-blue-900 mb-2">{t('title')}</h1>
+                            <p className="text-gray-600">{t('tagline')}</p>
+                            <div className="flex justify-center gap-2 mt-4">
+                                {['ar', 'fr', 'en'].map(l => (
+                                    <button key={l} onClick={() => setLang(l)} className={`px-3 py-1 rounded text-sm ${lang === l ? 'bg-blue-600 text-white' : 'bg-white border'}`}>{l.toUpperCase()}</button>
+                                ))}
+                            </div>
+                        </div>
 
-    # 4. Quiz
-    elif nav == "Quiz Challenge":
-        st.title("🧠 Active Recall Quiz")
-        
-        if not user['library']:
-            st.warning("Please purchase a book from the library first to generate a quiz.")
-        else:
-            selected_book = st.selectbox("Select a resource to review:", [b['title'] for b in user['library']])
-            
-            if st.button("Generate AI Quiz", type="primary"):
-                with st.spinner("Generating questions..."):
-                    time.sleep(1.5)
-                
-                st.markdown(f"### Topic: {selected_book}")
-                st.markdown("**Q1: What is the core concept discussed in Chapter 1 regarding this topic?**")
-                
-                ans = st.radio("Select the best answer:", [
-                    "The theoretical framework of modern systems.",
-                    "The historical context of the 19th century.",
-                    "The basic syntax and variable definitions."
-                ])
-                
-                if st.button("Submit Answer"):
-                    if random.choice([True, False]):
-                        st.success("Correct! You earned +20 XP")
-                        user['points'] += 20
-                    else:
-                        st.error("Incorrect. Try reading the summary again. -5 XP")
-                        user['points'] -= 5
+                        <div className="p-8">
+                            <div className="flex mb-6 border-b">
+                                <button onClick={() => setIsRegistering(false)} className={`flex-1 pb-3 text-center font-medium ${!isRegistering ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400'}`}>{t('login')}</button>
+                                <button onClick={() => setIsRegistering(true)} className={`flex-1 pb-3 text-center font-medium ${isRegistering ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400'}`}>{t('signup')}</button>
+                            </div>
 
-    # 5. Profile
-    elif nav == "Profile":
-        st.title("⚙️ Settings")
-        st.text_input("Full Name", value=user['name'])
-        st.text_input("Email", value=S['temp_email'], disabled=True)
-        st.selectbox("Language", ["English", "Français", "العربية"])
-        st.button("Save Changes")
+                            {isRegistering ? (
+                                <form onSubmit={handleSignup} className="space-y-4">
+                                    <input required placeholder="Nom Complet" className="w-full p-3 border rounded-lg" value={signupData.name} onChange={e => setSignupData({...signupData, name: e.target.value})} />
+                                    <input required type="email" placeholder="Email Univ" className="w-full p-3 border rounded-lg" value={signupData.email} onChange={e => setSignupData({...signupData, email: e.target.value})} />
+                                    <input required type="password" placeholder="Password" className="w-full p-3 border rounded-lg" value={signupData.password} onChange={e => setSignupData({...signupData, password: e.target.value})} />
+                                    
+                                    <select className="w-full p-3 border rounded-lg" value={signupData.faculty} onChange={e => setSignupData({...signupData, faculty: e.target.value})}>
+                                        <option value="">Choisir Faculté...</option>
+                                        {Object.keys(UNIVERSITIES).map(f => <option key={f} value={f}>{f}</option>)}
+                                    </select>
+                                    
+                                    <button type="submit" className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 transition">{t('signup')}</button>
+                                </form>
+                            ) : (
+                                <form onSubmit={handleLogin} className="space-y-4">
+                                    <input required type="email" placeholder={t('email')} className="w-full p-3 border rounded-lg" value={loginData.email} onChange={e => setLoginData({...loginData, email: e.target.value})} />
+                                    <input required type="password" placeholder={t('password')} className="w-full p-3 border rounded-lg" value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
+                                    <button type="submit" className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 transition">{t('login')}</button>
+                                </form>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
 
-# --- Main Execution Flow ---
-if S['auth_status'] == 'login':
-    render_login()
-elif S['auth_status'] == 'verify':
-    render_verify()
-else:
-    render_app()
+            const Dashboard = () => (
+                <div className="space-y-6 animate-fade-in">
+                    <header className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm">
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-800">{t('dashboard')}</h2>
+                            <p className="text-gray-500">Welcome back, student!</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2 bg-yellow-50 px-4 py-2 rounded-full text-yellow-700 font-bold border border-yellow-200">
+                                <Icons.Coins />
+                                <span>{user.points} {t('points')}</span>
+                            </div>
+                        </div>
+                    </header>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-blue-500">
+                            <h3 className="text-gray-500 text-sm font-medium uppercase">My Library</h3>
+                            <p className="text-3xl font-bold text-gray-800 mt-2">{user.library.length}</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-green-500">
+                            <h3 className="text-gray-500 text-sm font-medium uppercase">Uploads</h3>
+                            <p className="text-3xl font-bold text-gray-800 mt-2">{user.uploads.length}</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-purple-500">
+                            <h3 className="text-gray-500 text-sm font-medium uppercase">Level</h3>
+                            <p className="text-xl font-bold text-gray-800 mt-2">{user.level || "Master 1"}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-xl shadow-sm">
+                        <h3 className="text-xl font-bold mb-4">Recent Books</h3>
+                        {user.library.length === 0 ? (
+                            <div className="text-center py-10 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
+                                <p>You haven't bought any books yet.</p>
+                                <button onClick={() => setView('library')} className="mt-2 text-blue-600 hover:underline">Go to Library</button>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {user.library.map(book => (
+                                    <div key={book.id} className="border rounded-lg p-4 hover:shadow-md transition">
+                                        <div className="h-12 w-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mb-3 text-xl font-bold">PDF</div>
+                                        <h4 className="font-bold text-gray-800 truncate">{book.title}</h4>
+                                        <button className="mt-3 w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 rounded-lg text-sm font-medium transition">
+                                            <Icons.Download /> {t('download')}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+
+            const Library = () => {
+                const [filter, setFilter] = useState('');
+                const filteredBooks = books.filter(b => b.title.toLowerCase().includes(filter.toLowerCase()));
+
+                return (
+                    <div className="space-y-6 animate-fade-in">
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                            <h2 className="text-2xl font-bold">{t('library')}</h2>
+                            <div className="relative w-full md:w-64">
+                                <input 
+                                    type="text" 
+                                    placeholder={t('search')} 
+                                    className="w-full pl-10 pr-4 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none"
+                                    value={filter}
+                                    onChange={e => setFilter(e.target.value)}
+                                />
+                                <span className="absolute left-3 top-2.5 text-gray-400"><Icons.Search /></span>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {filteredBooks.map(book => {
+                                const isOwned = user.library.find(l => l.id === book.id);
+                                const dynPrice = Math.floor(book.price + (book.downloads * 0.2));
+                                
+                                return (
+                                    <div key={book.id} className="bg-white rounded-xl shadow-sm overflow-hidden border hover:shadow-lg transition duration-300 flex flex-col h-full">
+                                        <div className="h-32 bg-gradient-to-r from-blue-500 to-indigo-600 p-4 flex items-end">
+                                            <h3 className="text-white font-bold text-lg leading-tight">{book.title}</h3>
+                                        </div>
+                                        <div className="p-5 flex-1 flex flex-col">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded font-medium">{book.category || 'General'}</span>
+                                                <div className="flex items-center text-xs text-gray-500 gap-1">
+                                                    <Icons.Download /> {book.downloads}
+                                                </div>
+                                            </div>
+                                            <p className="text-sm text-gray-600 mb-4 line-clamp-2">{book.author} - {book.faculty}</p>
+                                            
+                                            <div className="mt-auto pt-4 border-t flex justify-between items-center">
+                                                {isOwned ? (
+                                                    <span className="text-green-600 font-bold flex items-center gap-1">
+                                                        <Icons.CheckCircle /> {t('owned')}
+                                                    </span>
+                                                ) : (
+                                                    <>
+                                                        <span className="font-bold text-lg text-gray-800">{dynPrice} <span className="text-xs text-gray-500">XP</span></span>
+                                                        <button 
+                                                            onClick={() => handlePurchase(book)}
+                                                            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition"
+                                                        >
+                                                            {t('buy')}
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            };
+
+            const Upload = () => {
+                const [file, setFile] = useState(null);
+                const [analyzing, setAnalyzing] = useState(false);
+                const [result, setResult] = useState(null);
+                const [title, setTitle] = useState("");
+
+                const processFile = async () => {
+                    if(!file || !title) return notify("Please select file and title", "error");
+                    setAnalyzing(true);
+                    const res = await analyzeFile(file);
+                    setResult(res);
+                    setAnalyzing(false);
+                };
+
+                const confirmUpload = () => {
+                    const newBook = {
+                        id: Date.now(),
+                        title: title,
+                        author: user.name,
+                        faculty: user.faculty,
+                        price: result.price,
+                        downloads: 0,
+                        quality: result.score,
+                        category: user.specialty,
+                        type: 'PDF'
+                    };
+                    
+                    const updatedBooks = [...books, newBook];
+                    setBooks(updatedBooks);
+                    localStorage.setItem('nazaha_books', JSON.stringify(updatedBooks));
+                    
+                    const updatedUser = { ...user, points: user.points + 20, uploads: [...user.uploads, newBook] };
+                    setUser(updatedUser);
+                    localStorage.setItem('nazaha_user', JSON.stringify(updatedUser));
+                    
+                    notify("Book published successfully! +20 XP");
+                    setResult(null);
+                    setFile(null);
+                    setTitle("");
+                };
+
+                return (
+                    <div className="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-sm animate-fade-in">
+                        <div className="text-center mb-8">
+                            <div className="inline-flex p-4 bg-blue-50 rounded-full text-blue-600 mb-4">
+                                <Icons.Upload />
+                            </div>
+                            <h2 className="text-2xl font-bold text-gray-800">{t('upload')}</h2>
+                            <p className="text-gray-500 mt-2">{t('upload_text')}</p>
+                        </div>
+
+                        {!result ? (
+                            <div className="space-y-6">
+                                <input 
+                                    type="text" 
+                                    placeholder="Book Title" 
+                                    className="w-full p-4 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                                    value={title}
+                                    onChange={e => setTitle(e.target.value)}
+                                />
+                                <div className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:bg-gray-50 transition cursor-pointer relative">
+                                    <input 
+                                        type="file" 
+                                        accept="application/pdf"
+                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                        onChange={e => setFile(e.target.files[0])}
+                                    />
+                                    <p className="text-gray-600 font-medium">{file ? file.name : "Drop PDF here or click to browse"}</p>
+                                </div>
+                                <button 
+                                    onClick={processFile} 
+                                    disabled={analyzing}
+                                    className={`w-full py-4 rounded-xl font-bold text-lg text-white transition ${analyzing ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                >
+                                    {analyzing ? "Analyzing with AI..." : "Analyze & Evaluate"}
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="animate-fade-in">
+                                <div className={`p-6 rounded-xl mb-6 border ${result.isAcademic ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                    <h3 className={`font-bold text-lg mb-2 ${result.isAcademic ? 'text-green-800' : 'text-red-800'}`}>
+                                        {result.isAcademic ? "✅ Academic Content Approved" : "❌ Low Quality Content"}
+                                    </h3>
+                                    <div className="flex gap-4 mt-4">
+                                        <div className="bg-white px-4 py-2 rounded shadow-sm">
+                                            <span className="text-gray-500 text-xs uppercase block">Quality Score</span>
+                                            <span className="font-bold text-xl">{result.score}%</span>
+                                        </div>
+                                        <div className="bg-white px-4 py-2 rounded shadow-sm">
+                                            <span className="text-gray-500 text-xs uppercase block">Market Price</span>
+                                            <span className="font-bold text-xl text-blue-600">{result.price} XP</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {result.isAcademic && (
+                                    <button onClick={confirmUpload} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg hover:shadow-xl transition">
+                                        Publish to Library (+20 XP)
+                                    </button>
+                                )}
+                                <button onClick={() => setResult(null)} className="w-full mt-3 text-gray-500 hover:text-gray-700">Cancel</button>
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            const Quiz = () => {
+                const [question, setQuestion] = useState(null);
+                
+                const generateQ = () => {
+                    if(user.library.length === 0) return notify("Buy books first", "error");
+                    const randomBook = user.library[Math.floor(Math.random() * user.library.length)];
+                    
+                    // Simulate Question Generation
+                    setTimeout(() => {
+                        setQuestion({
+                            text: `In the context of ${randomBook.title}, what is the primary methodology discussed in Chapter 1?`,
+                            options: ["Quantitative Analysis", "Qualitative Survey", "Mixed Methods", "Case Study"],
+                            correct: 0
+                        });
+                    }, 1500);
+                };
+
+                return (
+                    <div className="max-w-2xl mx-auto">
+                        <h2 className="text-2xl font-bold mb-6">{t('quiz')}</h2>
+                        
+                        {!question ? (
+                            <div className="bg-white p-10 rounded-2xl text-center shadow-sm">
+                                <div className="w-20 h-20 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                                    <Icons.Brain />
+                                </div>
+                                <h3 className="text-xl font-bold mb-2">Ready to test your knowledge?</h3>
+                                <p className="text-gray-500 mb-6">AI will generate questions based on the books you own.</p>
+                                <button onClick={generateQ} className="bg-purple-600 text-white px-8 py-3 rounded-full font-bold hover:bg-purple-700 transition">
+                                    Generate Quiz
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="bg-white p-8 rounded-2xl shadow-lg animate-fade-in border-t-4 border-purple-500">
+                                <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">AI Generated Question</span>
+                                <h3 className="text-xl font-bold mt-2 mb-6">{question.text}</h3>
+                                <div className="space-y-3">
+                                    {question.options.map((opt, i) => (
+                                        <button 
+                                            key={i} 
+                                            onClick={() => {
+                                                if(i === question.correct) {
+                                                    notify("Correct! +10 XP");
+                                                    const u = {...user, points: user.points + 10};
+                                                    setUser(u);
+                                                    localStorage.setItem('nazaha_user', JSON.stringify(u));
+                                                    setQuestion(null);
+                                                } else {
+                                                    notify("Wrong answer", "error");
+                                                }
+                                            }}
+                                            className="w-full text-left p-4 rounded-xl border hover:border-purple-500 hover:bg-purple-50 transition"
+                                        >
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            // --- Main Render ---
+            if (!user) return <AuthView />;
+
+            return (
+                <div className={`flex min-h-screen bg-gray-50 ${dir}`} dir={dir}>
+                    {/* Mobile Menu Button */}
+                    <button 
+                        className="fixed top-4 right-4 z-50 lg:hidden bg-white p-2 rounded shadow"
+                        onClick={() => setSidebarOpen(!sidebarOpen)}
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
+
+                    <Sidebar />
+
+                    <main className="flex-1 p-4 lg:p-8 overflow-y-auto h-screen">
+                        {notification && (
+                            <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-lg z-50 text-white font-bold animate-fade-in ${notification.type === 'error' ? 'bg-red-500' : 'bg-green-600'}`}>
+                                {notification.msg}
+                            </div>
+                        )}
+                        
+                        {view === 'dashboard' && <Dashboard />}
+                        {view === 'library' && <Library />}
+                        {view === 'upload' && <Upload />}
+                        {view === 'quiz' && <Quiz />}
+                        {view === 'settings' && (
+                            <div className="max-w-md bg-white p-6 rounded-xl shadow-sm">
+                                <h2 className="text-xl font-bold mb-4">{t('settings')}</h2>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
+                                        <div className="flex gap-2">
+                                            {['ar', 'fr', 'en'].map(l => (
+                                                <button key={l} onClick={() => setLang(l)} className={`px-4 py-2 rounded-lg border ${lang === l ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-50'}`}>{l.toUpperCase()}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
